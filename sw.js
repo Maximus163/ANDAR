@@ -4,12 +4,14 @@
 // Cada vez que publiques cambios en la app, subí el número de VERSION.
 // Así los celulares que ya la tienen instalada bajan la versión nueva.
 
-const VERSION = "andar-v4";
+const VERSION = "andar-v5";
 
 const ARCHIVOS = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
+  "./fonts/figtree.woff2",
+  "./fonts/bricolage-grotesque.woff2",
   "./icons/icon.svg",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
@@ -41,7 +43,7 @@ self.addEventListener("activate", evento => {
 self.addEventListener("fetch", evento => {
   const pedido = evento.request;
   if (pedido.method !== "GET") return;
-  if (new URL(pedido.url).origin !== self.location.origin) return;   // las fuentes de Google van directo
+  if (new URL(pedido.url).origin !== self.location.origin) return;   // el servidor de prueba va directo, sin copia
 
   if (pedido.mode === "navigate") {
     // La página: primero internet, para tener siempre la última versión; sin conexión, la copia guardada

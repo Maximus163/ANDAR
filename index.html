@@ -10,10 +10,11 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-title" content="Andar">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preload" href="fonts/figtree.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+/* Tipografías guardadas dentro de la app (licencia SIL OFL): cargan rápido y no se pide nada a otros servidores */
+@font-face{font-family:"Figtree";font-style:normal;font-weight:300 900;font-display:swap;src:url(fonts/figtree.woff2) format("woff2")}
+@font-face{font-family:"Bricolage Grotesque";font-style:normal;font-weight:200 800;font-display:swap;src:url(fonts/bricolage-grotesque.woff2) format("woff2")}
 /* Layout: una columna tipo celular (máx. 460px), una pantalla por paso, acciones grandes al pie de cada pantalla. */
 :root{
   --bg:#eaf1f2; --surface:#ffffff; --ink:#12262d; --muted:#566b72; --line:#d3dfe1;
@@ -88,7 +89,12 @@ input[type=text],input[type=tel],input[type=password],select{font:inherit;color:
 .pill.neutral{background:var(--accent-soft);color:var(--accent)}
 .contact{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
 .contact:first-of-type{border-top:0}
-.num{font-family:var(--display);font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink);text-decoration:none;white-space:nowrap}
+.num{display:inline-flex;align-items:center;gap:8px;font-family:var(--display);font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--accent);background:var(--accent-soft);border-radius:99px;padding:10px 14px;text-decoration:none;white-space:nowrap;flex:none}
+.btn.call{display:flex;align-items:center;justify-content:center;gap:12px;text-decoration:none;text-align:left;background:var(--crit);color:#fff;padding:16px 18px;font-size:18px}
+.btn.call svg{width:26px;height:26px;flex:none}
+.btn.call small{display:block;font-size:13px;font-weight:600;opacity:.9}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.call{color:#2a0806}}
+:root[data-theme="dark"] .btn.call{color:#2a0806}
 ul.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .stat{border-radius:14px;padding:12px;text-align:center}
@@ -126,6 +132,8 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .send{flex-wrap:nowrap} .send input{flex:1;min-width:0} .sendbtn{width:auto;flex:none}
 .aiout{white-space:pre-wrap;overflow-wrap:anywhere}
 .chip[disabled]{opacity:.5;cursor:not-allowed}
+.modal{position:fixed;inset:0;background:rgba(6,20,24,.55);display:grid;place-items:center;padding:16px;z-index:10}
+.modal .card{width:100%;max-width:420px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
 /* Tablero del equipo en pantallas grandes (PC, televisor). En el celular queda en una columna. */
 .cases,.maplay,.mapcol{display:flex;flex-direction:column;gap:18px}
 .cases{gap:12px}
@@ -201,8 +209,9 @@ var KEY = 'misalud.comoestoy.casos';
 var S = { view: 'home', i: 0, phq: [], gad: [], consent: false, alias: '', localidad: '', contacto: false, tel: '', result: null, filtro: 'pendientes', tab: 'casos', loc: '', metric: 'malestar', ctx: {}, ci: 0, chat: [], busy: false, typed: false, ai: { busy:false, text:'', q:'', err:'' }, casos: [] };
 
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); }
-function load(){ try { var r = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(r) ? r : []; } catch(e){ return []; } }
-function save(){ try { localStorage.setItem(KEY, JSON.stringify(S.casos.filter(function(c){ return !c.demo; }))); } catch(e){} }
+// Privacidad: los chequeos ya no se guardan en el celular. En un celular compartido nadie puede ver
+// los resultados de otra persona. Se borra lo que hayan dejado las versiones anteriores.
+try { localStorage.removeItem(KEY); } catch(e){}
 function hace(h){ return new Date(Date.now() - h * 3600000).toISOString(); }
 // ---------- Servidor de prueba (Supabase) ----------
 // Solo se usa si la app se abre con ?prueba en la dirección. Sin eso, los chequeos quedan en el celular como siempre.
@@ -210,6 +219,8 @@ function hace(h){ return new Date(Date.now() - h * 3600000).toISOString(); }
 // La clave es la "publishable" o "anon" de Supabase, que es pública por diseño.
 var SERVIDOR = { url: 'https://tikctyrrouxghtqhpchw.supabase.co', key: 'sb_publishable_ERQ5ECBHDJF2HDwmS1f7gw_BnoYHa9E' };
 var NUBE = !!(SERVIDOR.url && SERVIDOR.key) && /[?&]prueba(=|&|$)/.test(location.search);
+// El acceso al tablero solo aparece en los enlaces del equipo (?equipo o ?prueba), no en la app de los vecinos.
+var EQUIPO_LINK = NUBE || /[?&]equipo(=|&|$)/.test(location.search);
 var CADA = 15000; // cada cuánto se actualiza el tablero, en milisegundos
 var NUBE_EST = { ok: null, hora: '', cargando: false };
 function api(ruta, op){
@@ -330,7 +341,7 @@ function mapaHTML(){
     var o = d[k];
     return '<tr><td>' + esc(k) + '</td><td class="n">' + o.n + '</td><td class="n">' + o.x + '</td><td class="n"><strong>' + (o.step < 0 ? 'pocos datos' : o.pct + '%') + '</strong></td></tr>';
   }).join('');
-  return '<div class="notice"><strong>Datos de ejemplo.</strong> Las cantidades son inventadas para mostrar cómo se vería el mapa. Los chequeos hechos en este dispositivo se suman a su localidad.</div>' + chips +
+  return '<div class="notice"><strong>Datos de ejemplo.</strong> Las cantidades son inventadas para mostrar cómo se vería el mapa. ' + (NUBE ? 'Los chequeos del servidor de prueba se suman a su localidad.' : 'Los chequeos hechos en esta pantalla se suman a su localidad hasta que se cierra.') + '</div>' + chips +
     '<div class="maplay"><div class="mapcol"><div class="card stack"><div class="row between"><h3>' + M.t + '</h3><span class="small muted">' + tot.x + ' de ' + tot.n + '</span></div>' +
     '<p class="small muted">' + M.d + '</p>' +
     '<div class="map" role="group" aria-label="Mapa esquemático de localidades de La Matanza">' + tiles + '</div>' +
@@ -354,10 +365,16 @@ function header(back, title){
     (back ? '<button class="link" data-a="home">Inicio</button>' : '') + '</div>';
 }
 
-function contactosHTML(){
-  return '<div class="card">' + CONTACTOS.map(function(c){
-    return '<div class="contact"><div><strong>' + esc(c.t) + '</strong><div class="small muted">' + esc(c.d) + '</div></div><a class="num" href="tel:' + c.n.replace(/[^0-9]/g,'') + '">' + esc(c.n) + '</a></div>';
+var TEL_ICO = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>';
+function contactosHTML(desde){
+  return '<div class="card">' + CONTACTOS.slice(desde || 0).map(function(c){
+    return '<div class="contact"><div><strong>' + esc(c.t) + '</strong><div class="small muted">' + esc(c.d) + '</div></div><a class="num" href="tel:' + c.n.replace(/[^0-9]/g,'') + '" aria-label="Llamar al ' + esc(c.n) + '">' + TEL_ICO + esc(c.n) + '</a></div>';
   }).join('') + '</div>';
+}
+// Botón grande para llamar a la línea de salud mental (la primera de CONTACTOS)
+function llamarHTML(){
+  var c = CONTACTOS[0];
+  return '<a class="btn call" href="tel:' + c.n.replace(/[^0-9]/g,'') + '">' + TEL_ICO + '<span>Llamar ahora al ' + esc(c.n) + '<small>' + esc(c.d) + '</small></span></a>';
 }
 
 // ---------- Asistente con IA ----------
@@ -469,7 +486,7 @@ V.home = function(){
     '<div class="tile off">' + ICO.pill + '<div><div class="tname">Mis medicamentos</div><div class="tag">Próximamente</div></div></div>' +
   '</div>' +
   '<p class="small muted">Prototipo de demostración. Todavía no está validado por un equipo clínico.' + (NUBE ? ' <strong>Modo de prueba con servidor:</strong> usá solo datos inventados.' : '') + '</p>' +
-  '<button class="link small" data-a="team">Acceso para el equipo de salud (usuario: ' + DEMO_ACCESO.usuario + ', clave: ' + DEMO_ACCESO.clave + ')</button>';
+  (EQUIPO_LINK ? '<button class="link small" data-a="team">Acceso para el equipo de salud (usuario: ' + DEMO_ACCESO.usuario + ', clave: ' + DEMO_ACCESO.clave + ')</button>' : '');
 };
 
 V.login = function(){
@@ -558,7 +575,8 @@ V.result = function(){
   } else {
     body = '<div class="level rojo stack"><span class="pill rojo">Nivel rojo</span><h2>Queremos que hables con alguien lo antes posible</h2>' +
       '<p>Tus respuestas muestran un malestar importante. No tenés que pasar por esto solo/a: hay personas preparadas para acompañarte hoy mismo.</p></div>' +
-      '<div class="stack"><h3>Teléfonos de ayuda</h3>' + contactosHTML() + '</div>' +
+      llamarHTML() +
+      '<div class="stack"><h3>Otros teléfonos de ayuda</h3>' + contactosHTML(1) + '</div>' +
       '<div class="card"><p>También podés ir a la guardia del hospital más cercano. ' + (S.contacto ? 'El equipo de salud va a priorizar tu contacto.' : '') + '</p></div>';
   }
   var nec = necesidades(S.ctx);
@@ -581,7 +599,8 @@ V.crisis = function(){
   return header(true, '¿Cómo estoy?') +
   '<div class="level rojo stack"><h2>Gracias por contarlo. Lo que te pasa es importante</h2>' +
   '<p>Por lo que respondiste, queremos que hables con una persona ahora. Frenamos el cuestionario acá porque lo primero es que tengas ayuda.</p></div>' +
-  '<div class="stack"><h3>Podés llamar ahora mismo</h3>' + contactosHTML() + '</div>' +
+  llamarHTML() +
+  '<div class="stack"><h3>Otros teléfonos de ayuda</h3>' + contactosHTML(1) + '</div>' +
   '<div class="card stack"><p>Si estás en peligro o pensás que podés hacerte daño, llamá al <strong>107</strong> o al <strong>911</strong>, o andá a la guardia más cercana. Si podés, avisale a alguien de confianza para que te acompañe.</p>' +
   (S.contacto ? '<p>El equipo de salud ya tiene tu aviso como prioridad.</p>' : '') + '</div>' +
   '<button class="btn ghost" data-a="home">Volver al inicio</button>';
@@ -605,7 +624,7 @@ V.team = function(){
     ? '<div class="notice row between"><span><strong>Servidor de prueba.</strong> Muestra los chequeos de todos los celulares que usan el enlace de prueba, con datos inventados. ' +
       (NUBE_EST.ok === false ? '<strong>No se pudo conectar.</strong>' : NUBE_EST.ok ? 'Actualizado a las ' + esc(NUBE_EST.hora) + '.' : 'Conectando…') + '</span>' +
       '<button class="chip" data-a="actualizar"' + (NUBE_EST.cargando ? ' disabled' : '') + '>Actualizar</button></div>'
-    : '<p class="muted small">Los casos marcados como ejemplo son datos de prueba. Los chequeos hechos en este dispositivo se suman a la lista.</p>') + '</div>' + tabs +
+    : '<p class="muted small">Los casos marcados como ejemplo son datos de prueba. Los chequeos hechos en esta pantalla se suman a la lista y se borran al cerrarla: no quedan guardados en el aparato.</p>') + '</div>' + tabs +
   '<div class="stats"><div class="stat rojo"><b>' + n.rojo + '</b>Rojo</div><div class="stat amarillo"><b>' + n.amarillo + '</b>Amarillo</div><div class="stat verde"><b>' + n.verde + '</b>Verde</div></div>' +
   '<div class="chips">' + chips.map(function(c){ return '<button class="chip' + (f === c[0] ? ' on' : '') + '" data-a="filtro" data-v="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>' +
   '<div class="cases">' + (list.length ? list.map(function(c){
@@ -623,13 +642,33 @@ V.team = function(){
   '<tr><td><span class="pill rojo">Rojo</span></td><td>Ánimo o ansiedad de ' + RULES.rojo + ' puntos o más, o cualquier respuesta distinta de "Nunca" en la pregunta 9 de ánimo.</td></tr>' +
   '<tr><td><span class="pill amarillo">Amarillo</span></td><td>Ánimo o ansiedad entre ' + RULES.amarillo + ' y ' + (RULES.rojo - 1) + ' puntos.</td></tr>' +
   '<tr><td><span class="pill verde">Verde</span></td><td>Ambos por debajo de ' + RULES.amarillo + ' puntos. Entre ' + RULES.leve + ' y ' + (RULES.amarillo - 1) + ' se sugiere repetir el chequeo en dos semanas.</td></tr></table></div></div>' +
-  (NUBE ? '' : '<button class="link small" data-a="borrar">Borrar los chequeos guardados en este dispositivo</button>') +
   '<button class="link small" data-a="salir">Cerrar sesión del equipo</button>';
 };
 
+// ---------- Botón "atrás" del celular ----------
+// Se agrega una entrada al historial al salir del inicio: así "atrás" vuelve al inicio en vez de cerrar la app.
+// Si hay un chequeo a medias, antes se pregunta si la persona quiere salir.
+var HIST = false;
+function enCurso(){ return S.view === 'quiz' || S.view === 'chat' || S.view === 'ctx'; }
+window.addEventListener('popstate', function(){
+  HIST = false;
+  if (S.view === 'home') return;
+  if (enCurso()) S.confirmSalir = true; else { S.confirmSalir = false; S.view = 'home'; }
+  if (S.view === 'home') render(); else renderKeep();
+});
+function confirmSalirHTML(){
+  return '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="msal"><div class="card stack">' +
+    '<h3 id="msal">¿Querés salir del chequeo?</h3><p>Se pierden las respuestas que diste hasta ahora.</p>' +
+    '<button class="btn" data-a="seguir">Seguir con el chequeo</button><button class="btn ghost" data-a="salirok">Salir</button></div></div>';
+}
+
 function render(){
+  if (!enCurso()) S.confirmSalir = false;
   document.body.setAttribute('data-view', S.view);
-  document.getElementById('app').innerHTML = V[S.view]();
+  document.getElementById('app').innerHTML = V[S.view]() + (S.confirmSalir ? confirmSalirHTML() : '');
+  if (S.view !== 'home' && !HIST){ try { history.pushState({ andar: 1 }, ''); HIST = true; } catch(e){} }
+  else if (S.view === 'home' && HIST){ HIST = false; try { history.back(); } catch(e){} }
+  if (S.confirmSalir){ var b = document.querySelector('.modal [data-a=seguir]'); if (b) try { b.focus(); } catch(e){} return; }
   if (S.view === 'chat'){
     window.scrollTo(0, document.documentElement.scrollHeight);
     var inp = document.getElementById('chatin'); if (inp && S.typed && !S.busy){ try { inp.focus(); } catch(e){} }
@@ -649,13 +688,15 @@ function finalizar(){ S.result = classify(S.phq, S.gad); registrar(S.result); S.
 function registrar(r){
   var c = { id: NUBE ? nuevoId() : 'c' + Date.now(), demo: false, prueba: NUBE, fecha: new Date().toISOString(), alias: S.alias, localidad: S.localidad, contacto: S.contacto, tel: S.contacto ? S.tel : '', phq: r.phq, gad: r.gad, nivel: r.nivel, motivo: r.motivo, ctx: S.ctx, estado: r.nivel === 'verde' ? 'Sin acción' : 'Pendiente' };
   S.casos.push(c);
-  if (NUBE) subirCaso(c); else save();
+  if (NUBE) subirCaso(c);
 }
 
 document.addEventListener('click', function(e){
   var el = e.target.closest('[data-a]'); if (!el || el.disabled) return;
   var a = el.getAttribute('data-a'), v = el.getAttribute('data-v'), keep = false;
-  if (a === 'home'){ S.view = 'home'; }
+  if (a === 'home'){ if (enCurso()){ S.confirmSalir = true; keep = true; } else S.view = 'home'; }
+  else if (a === 'seguir'){ S.confirmSalir = false; keep = true; }
+  else if (a === 'salirok'){ S.confirmSalir = false; S.view = 'home'; }
   else if (a === 'intro'){ S.view = 'intro'; S.consent = false; S.i = 0; S.phq = []; S.gad = []; S.ctx = {}; S.result = null; S.chat = []; S.busy = false; S.ai = { busy:false, text:'', q:'', err:'' }; pedirIA(); }
   else if (a === 'start'){ readForm(); S.view = 'quiz'; S.i = 0; }
   else if (a === 'startchat'){ readForm(); iniciarChat(); }
@@ -685,10 +726,9 @@ document.addEventListener('click', function(e){
       c.estado = c.estado === 'Pendiente' ? 'Contactado' : 'Pendiente';
       if (NUBE && c.prueba && c.subido !== false) api('chequeos?id=eq.' + encodeURIComponent(c.id), { method: 'PATCH', prefer: 'return=minimal', body: { estado: c.estado } }).then(traerCasos, traerCasos);
     });
-    keep = true; if (!NUBE) save();
+    keep = true;
   }
   else if (a === 'actualizar'){ traerCasos(); keep = true; }
-  else if (a === 'borrar' && !NUBE){ S.casos = S.casos.filter(function(c){ return c.demo; }); save(); }
   var y = window.scrollY; render(); if (keep) window.scrollTo(0, y);
 });
 
@@ -713,7 +753,7 @@ document.addEventListener('submit', function(e){
   else if (id === 'dudaform'){ var d = document.getElementById('duda'); if (d && d.value.trim()) iaResultado(d.value); }
 });
 
-S.casos = NUBE ? [] : DEMO.concat(load());
+S.casos = NUBE ? [] : DEMO.slice();
 pedirIA();
 render();
 

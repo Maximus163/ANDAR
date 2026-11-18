@@ -26,7 +26,7 @@ El proyecto tiene una mirada justicialista en lo que hace: la salud como derecho
 | Presentación para el Secretario | 11 diapositivas con capturas del prototipo y notas del orador, en claude.ai |
 | Plan del triaje (`docs/plan-triaje.md`) | La idea, los criterios de diseño y cómo empezar |
 
-El prototipo guarda los chequeos solo en el navegador donde se hacen. Los textos de las preguntas, los puntos de corte y los teléfonos de ayuda son provisorios hasta que los valide el equipo clínico.
+El prototipo no guarda los chequeos en el celular, para que en un celular compartido nadie vea los resultados de otra persona. El tablero del equipo tiene su propio enlace (`?equipo`) y para las demostraciones hay un servidor de prueba (`?prueba`). Los textos de las preguntas, los puntos de corte y los teléfonos de ayuda son provisorios hasta que los valide el equipo clínico.
 
 ## Pendientes
 

@@ -25,7 +25,9 @@ También está publicada en https://maximus163.github.io/ANDAR/ y se puede insta
 
 Una vez instalada abre aunque no haya conexión. Cuando publiques cambios, subí el número de `VERSION` en `sw.js` para que los celulares bajen la versión nueva.
 
-Los chequeos se guardan solo en el navegador donde se hacen. Los casos y los números del mapa que vienen cargados son inventados.
+Los chequeos no quedan guardados en el celular: así, en un celular compartido nadie ve los resultados de otra persona. Los casos y los números del mapa que vienen cargados son inventados.
+
+El acceso al tablero del equipo no aparece en la app de los vecinos. Se ve abriendo https://maximus163.github.io/ANDAR/?equipo (usuario `Salud`, clave `123456`, solo de demostración) o con el enlace del servidor de prueba.
 
 ## Sobre la inteligencia artificial
 
