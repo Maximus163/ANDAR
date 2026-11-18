@@ -219,7 +219,7 @@ function classify(phq, gad){
   var p = sum(phq), g = sum(gad);
   var riesgo = (phq[RULES.itemRiesgo] || 0) > 0;
   var nivel, motivo;
-  if (riesgo){ nivel = 'rojo'; motivo = 'Respuesta positiva en la pregunta de riesgo'; }
+  if (riesgo){ nivel = 'rojo'; motivo = 'Pregunta 9 respondida con una opción distinta de "Nunca"'; }
   else if (p >= RULES.rojo || g >= RULES.rojo){ nivel = 'rojo'; motivo = 'Puntaje alto'; }
   else if (p >= RULES.amarillo || g >= RULES.amarillo){ nivel = 'amarillo'; motivo = 'Puntaje moderado'; }
   else { nivel = 'verde'; motivo = (p >= RULES.leve || g >= RULES.leve) ? 'Molestias leves' : 'Sin señales de alarma'; }
@@ -253,6 +253,18 @@ var OPTS = ['Nunca', 'Varios días', 'Más de la mitad de los días', 'Casi todo
 var EDADES = ['Menos de 18', '18 a 29', '30 a 44', '45 a 59', '60 o más'];
 // Opciones de identidad de género del Censo 2022 (INDEC). Se puede no responder.
 var GENEROS = ['Mujer', 'Varón', 'Mujer trans / travesti', 'Varón trans / masculinidad trans', 'No binario', 'Otra identidad'];
+// Menores de 18 (Ley 26.657, art. 26; Ley 27.130, arts. 8 y 12). Textos y teléfono PROVISORIOS:
+// el protocolo para adolescentes (qué cuestionario usar, desde qué edad y a quién avisar) lo tiene que definir el equipo clínico.
+var MENORES = {
+  aviso: '<strong>Las preguntas están pensadas para personas adultas.</strong> Igual podés responderlas. Al final te vamos a mostrar dónde pueden ayudarte si tenés menos de 18 años.',
+  tel: { n: '102', t: 'Línea de los derechos de niñas, niños y adolescentes', d: 'Gratuita, en la provincia de Buenos Aires' } // PROVISORIO: confirmar número y horario antes de cualquier uso real
+};
+function esMenor(c){ return (c ? c.edad : S.edad) === 'Menos de 18'; }
+function menoresHTML(){
+  var t = MENORES.tel;
+  return '<div class="card stack"><h3>Si tenés menos de 18 años</h3><p>No tenés que pasar por esto solo o sola. Podés hablar con un adulto de confianza, con alguien de tu escuela o ir a la salita. También podés llamar gratis:</p>' +
+    '<div class="contact"><div><strong>' + esc(t.t) + '</strong><div class="small muted">' + esc(t.d) + '</div></div><a class="num" href="tel:' + t.n + '" aria-label="Llamar al ' + t.n + '">' + TEL_ICO + t.n + '</a></div></div>';
+}
 function edadTxt(e){ return e ? (e === 'Menos de 18' ? 'menos de 18 años' : e + ' años') : ''; }
 var LOCALIDADES = ['San Justo','Ramos Mejía','Villa Luzuriaga','Isidro Casanova','Rafael Castillo','Gregorio de Laferrere','González Catán','Virrey del Pino','Ciudad Evita','La Tablada','Lomas del Mirador','Tapiales','Aldo Bonzi','Villa Madero','Villa Celina','20 de Junio','Otra'];
 // Contactos de ayuda: a confirmar por el equipo clínico antes de cualquier uso real.
@@ -267,7 +279,7 @@ var NOMBRE = { verde: 'Verde', amarillo: 'Amarillo', rojo: 'Rojo' };
 var NIVEL_DESC = { rojo: ['Urgente', 'Contactar lo antes posible'], amarillo: ['Atención', 'Ofrecer una consulta pronto'], verde: ['Sin alarma', 'Seguimiento habitual'] };
 // Versión publicada: se muestra al pie del inicio para saber si el celular ya tiene la última.
 // Tiene que ser igual a VERSION en sw.js (lo controla tests/version.test.js). Subir las dos en cada publicación.
-var VERSION_APP = 'andar-v16', VERSION_FECHA = '18/11/2026';
+var VERSION_APP = 'andar-v17', VERSION_FECHA = '18/11/2026';
 var KEY = 'misalud.comoestoy.casos';
 
 var S = { view: 'home', i: 0, phq: [], gad: [], consent: false, alias: '', localidad: '', edad: '', genero: '', contacto: false, tel: '', result: null, filtro: 'pendientes', tab: 'casos', loc: '', metric: 'malestar', ctx: {}, ci: 0, chat: [], busy: false, typed: false, ai: { busy:false, text:'', q:'', err:'' }, casos: [] };
@@ -322,7 +334,7 @@ if (NUBE) setInterval(function(){ if (S.view === 'team' && !document.hidden) tra
 function fecha(iso){ try { return new Date(iso).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }); } catch(e){ return iso; } }
 
 var DEMO = [
-  { id:'d1', demo:true, fecha:hace(2),  alias:'Ejemplo 1', localidad:'González Catán',  edad:'18 a 29', genero:'Mujer', contacto:true,  tel:'11 5555-0101', phq:17, gad:12, nivel:'rojo', motivo:'Respuesta positiva en la pregunta de riesgo', estado:'Pendiente', ctx:{ trabajo:2, vivienda:1, alimentacion:1, apoyo:2 } },
+  { id:'d1', demo:true, fecha:hace(2),  alias:'Ejemplo 1', localidad:'González Catán',  edad:'18 a 29', genero:'Mujer', contacto:true,  tel:'11 5555-0101', phq:17, gad:12, nivel:'rojo', motivo:'Pregunta 9 respondida con una opción distinta de "Nunca"', estado:'Pendiente', ctx:{ trabajo:2, vivienda:1, alimentacion:1, apoyo:2 } },
   { id:'d2', demo:true, fecha:hace(5),  alias:'Ejemplo 2', localidad:'San Justo', edad:'45 a 59', genero:'Varón', contacto:true,  tel:'11 5555-0102', phq:12, gad:9,  nivel:'amarillo', motivo:'Puntaje moderado', estado:'Pendiente', ctx:{ trabajo:1, vivienda:0, alimentacion:0, apoyo:1 } },
   { id:'d3', demo:true, fecha:hace(20), alias:'Ejemplo 3', localidad:'Isidro Casanova', edad:'30 a 44', genero:'', contacto:false, tel:'', phq:8,  gad:16, nivel:'rojo', motivo:'Puntaje alto', estado:'Pendiente' },
   { id:'d4', demo:true, fecha:hace(26), alias:'Ejemplo 4', localidad:'Villa Luzuriaga', edad:'60 o más', genero:'Mujer', contacto:true,  tel:'11 5555-0104', phq:11, gad:13, nivel:'amarillo', motivo:'Puntaje moderado', estado:'Contactado', ctx:{ trabajo:0, vivienda:2, alimentacion:0, apoyo:0 } },
@@ -527,7 +539,7 @@ function privacidadHTML(){
     : '<div class="privbar"><span><strong>Pantalla compartida.</strong> Los datos personales están ocultos para que se pueda ver en un televisor o en una sala.</span><button class="chip on" data-a="verpro">Ver datos completos (profesional)</button></div>';
 }
 function tarjetaHTML(c){
-  var cabeza = '<div class="row between"><strong>' + esc(PRO.on ? (c.alias || 'Sin nombre') : iniciales(c.alias)) + '</strong><span class="row"><span class="pill ' + c.nivel + '">' + NOMBRE[c.nivel] + (PRO.on ? '' : ' · ' + NIVEL_DESC[c.nivel][0]) + '</span>' + (c.demo ? '<span class="pill neutral">Ejemplo</span>' : '') + '</span></div>';
+  var cabeza = '<div class="row between"><strong>' + esc(PRO.on ? (c.alias || 'Sin nombre') : iniciales(c.alias)) + '</strong><span class="row"><span class="pill ' + c.nivel + '">' + NOMBRE[c.nivel] + (PRO.on ? '' : ' · ' + NIVEL_DESC[c.nivel][0]) + '</span>' + (PRO.on && esMenor(c) ? '<span class="pill amarillo">Menor de 18</span>' : '') + (c.demo ? '<span class="pill neutral">Ejemplo</span>' : '') + '</span></div>';
   var estado = c.nivel !== 'verde' ? '<span class="small">Estado: <span class="pill ' + (c.estado === 'Pendiente' ? 'rojo' : 'verde') + '">' + esc(c.estado) + '</span></span>' : '';
   if (!PRO.on) return '<div class="card case ' + c.nivel + ' stack">' + cabeza +
     '<div class="small muted">' + [c.localidad, haceTxt(c.fecha)].filter(Boolean).map(esc).join(' · ') + '</div>' + (estado ? '<div>' + estado + '</div>' : '') + '</div>';
@@ -638,7 +650,7 @@ function avanzar(val){
   S.i++;
 }
 function aCrisis(){
-  var r = classify(S.phq, S.gad); r.nivel = 'rojo'; r.riesgo = true; r.leve = false; r.motivo = 'Mensaje de riesgo en la conversación';
+  var r = classify(S.phq, S.gad); r.nivel = 'rojo'; r.riesgo = true; r.leve = false; r.motivo = 'Mencionó ideas de hacerse daño en la conversación';
   S.result = r; registrar(r); S.view = 'crisis';
 }
 function enviarChat(texto){
@@ -735,6 +747,14 @@ V.intro = function(){
   '<p>Te vamos a hacer 16 preguntas cortas sobre cómo te sentiste en las últimas dos semanas. No hay respuestas correctas ni incorrectas, y no hace falta tener obra social.</p></div>' +
   '<div class="notice"><strong>Esto no es un diagnóstico</strong> y no reemplaza la consulta con un profesional. Sirve para orientarte sobre qué paso conviene dar.</div>' +
   (NUBE ? '<div class="level amarillo"><strong>Modo de prueba.</strong> Lo que respondas se envía a un servidor de demostración que puede ver cualquiera que tenga el enlace. Usá un nombre y un teléfono inventados.</div>' : '') +
+  // Consentimiento informado (Ley 26.657, arts. 7 inc. j y 10): qué pasa con lo que responde, antes de empezar.
+  '<div class="card stack"><h3>Lo que tenés que saber</h3><ul class="tips">' +
+    '<li><strong>Es voluntario.</strong> Podés saltear lo que no quieras contestar y dejar de responder cuando quieras.</li>' +
+    (NUBE
+      ? '<li><strong>Tus respuestas llegan al equipo de salud</strong> para que pueda acompañarte. Tu nombre y tu teléfono solo los ve el equipo, y las estadísticas del partido se arman sin datos personales.</li>'
+      : '<li><strong>Tus respuestas no se guardan en este celular ni se envían a ningún lado.</strong> Solo sirven para mostrarte tu resultado.</li>') +
+    '<li><strong>Si aparece una señal de que estás pasando un momento muy difícil,</strong> te vamos a mostrar enseguida teléfonos donde te pueden ayudar.</li>' +
+  '</ul></div>' +
   '<div class="card stack">' +
     '<div class="field"><label for="alias">¿Cómo querés que te llamemos? (opcional)</label><input id="alias" type="text" maxlength="30" autocomplete="off" placeholder="Un nombre o apodo" value="' + esc(S.alias) + '"></div>' +
     '<div class="field"><label for="localidad">Tu localidad (opcional)</label><select id="localidad"><option value="">Prefiero no decir</option>' +
@@ -744,10 +764,15 @@ V.intro = function(){
     '<div class="field"><label for="genero">Género (opcional)</label><select id="genero"><option value="">Prefiero no decir</option>' +
       GENEROS.map(function(l){ return '<option' + (S.genero === l ? ' selected' : '') + '>' + esc(l) + '</option>'; }).join('') + '</select></div>' +
     '<p class="small muted">La edad y el género se usan para estadísticas generales del partido. Podés no responderlos.</p>' +
-    '<label class="check" for="contacto"><input id="contacto" type="checkbox"' + (S.contacto ? ' checked' : '') + '><span>Acepto que el equipo de salud me contacte si el resultado lo sugiere.</span></label>' +
-    (S.contacto ? '<div class="field"><label for="tel">Teléfono de contacto</label><input id="tel" type="tel" maxlength="20" autocomplete="off" placeholder="11 1234-5678" value="' + esc(S.tel) + '"></div>' : '') +
+    (S.edad === 'Menos de 18' ? '<div class="notice">' + MENORES.aviso + '</div>' : '') +
+    // El pedido de contacto solo se ofrece si el aviso llega de verdad a un equipo (modo con servidor).
+    // En el enlace común no hay a quién avisarle, y prometer una llamada que no va a llegar sería engañoso.
+    (NUBE
+      ? '<label class="check" for="contacto"><input id="contacto" type="checkbox"' + (S.contacto ? ' checked' : '') + '><span>Acepto que el equipo de salud me llame por teléfono para ofrecerme acompañamiento si el resultado lo sugiere.</span></label>' +
+        (S.contacto ? '<div class="field"><label for="tel">Teléfono de contacto</label><input id="tel" type="tel" maxlength="20" autocomplete="off" placeholder="11 1234-5678" value="' + esc(S.tel) + '"></div>' : '')
+      : '') +
   '</div>' +
-  '<label class="check" for="consent"><input id="consent" type="checkbox"' + (S.consent ? ' checked' : '') + '><span>Entiendo que es una orientación y acepto responder las preguntas.</span></label>' +
+  '<label class="check" for="consent"><input id="consent" type="checkbox"' + (S.consent ? ' checked' : '') + '><span>Leí lo anterior, entiendo que es una orientación y acepto responder las preguntas.</span></label>' +
   (SAMPLE
     ? '<button class="btn" data-a="startchat"' + (S.consent ? '' : ' disabled') + '>Empezar conversando con el asistente</button>' +
       '<button class="btn ghost" data-a="start"' + (S.consent ? '' : ' disabled') + '>Prefiero responder con botones</button>' +
@@ -804,7 +829,7 @@ V.result = function(){
     body = '<div class="level amarillo stack"><span class="pill amarillo">Nivel amarillo</span><h2>Conviene que lo converses con un profesional</h2>' +
       '<p>Tus respuestas muestran un malestar que vale la pena atender. Pedir ayuda a tiempo hace que sea más fácil sentirse mejor, y es tu derecho.</p></div>' +
       '<div class="card stack"><h3>Qué podés hacer ahora</h3><ul class="tips"><li>Acercate a la salita o al centro de salud de tu barrio y pedí una consulta de salud mental. Es gratuita.</li>' +
-      (S.contacto ? '<li>Como aceptaste que te contacten, el equipo de salud se va a comunicar con vos.</li>' : '<li>Si querés que el equipo te llame, podés repetir el chequeo y dejar un teléfono.</li>') +
+      (S.contacto ? '<li>Como aceptaste que te contacten, el equipo de salud se va a comunicar con vos.</li>' : NUBE ? '<li>Si querés que el equipo te llame, podés repetir el chequeo y dejar un teléfono.</li>' : '') +
       '<li>Si en algún momento te sentís peor, usá los teléfonos de ayuda que están abajo.</li></ul></div>' + contactosHTML();
   } else {
     body = '<div class="level rojo stack"><span class="pill rojo">Nivel rojo</span><h2>Queremos que hables con alguien lo antes posible</h2>' +
@@ -813,6 +838,7 @@ V.result = function(){
       '<div class="stack"><h3>Otros teléfonos de ayuda</h3>' + contactosHTML(1) + '</div>' +
       '<div class="card"><p>También podés ir a la guardia del hospital más cercano. ' + (S.contacto ? 'El equipo de salud va a priorizar tu contacto.' : '') + '</p></div>';
   }
+  if (esMenor()) body += menoresHTML();
   var nec = necesidades(S.ctx);
   if (nec.length) body += '<div class="card stack"><h3>Tu día a día también cuenta</h3><p>Nos contaste que hoy hay dificultades con: <strong>' + esc(nec.join(', ').toLowerCase()) + '</strong>. Eso pesa en cómo te sentís, y no es algo que tengas que resolver solo/a.</p><p>' +
     (S.contacto ? 'El equipo de salud lo va a tener en cuenta cuando se comunique con vos.' : 'En el centro de salud de tu barrio pueden orientarte sobre la ayuda disponible.') + '</p></div>';
@@ -835,6 +861,7 @@ V.crisis = function(){
   '<div class="level rojo stack"><h2>Gracias por contarlo. Lo que te pasa es importante</h2>' +
   '<p>Por lo que respondiste, queremos que hables con una persona ahora. Frenamos el cuestionario acá porque lo primero es que tengas ayuda.</p></div>' +
   llamarHTML() +
+  (esMenor() ? menoresHTML() : '') +
   '<div class="stack"><h3>Otros teléfonos de ayuda</h3>' + contactosHTML(1) + '</div>' +
   '<div class="card stack"><p>Si estás en peligro o pensás que podés hacerte daño, llamá al <strong>107</strong> o al <strong>911</strong>, o andá a la guardia más cercana. Si podés, avisale a alguien de confianza para que te acompañe.</p>' +
   (S.contacto ? '<p>El equipo de salud ya tiene tu aviso como prioridad.</p>' : '') + '</div>' +
@@ -850,7 +877,8 @@ V.team = function(){
     return c.nivel === f;
   });
   var orden = { rojo:0, amarillo:1, verde:2 };
-  if (f === 'pendientes') list.sort(function(a, b){ return orden[a.nivel] - orden[b.nivel] || (a.fecha < b.fecha ? 1 : -1); });
+  // Pendientes: primero por color y, dentro de cada color, primero menores de 18 (Ley 27.130, art. 8), después por fecha.
+  if (f === 'pendientes') list.sort(function(a, b){ return orden[a.nivel] - orden[b.nivel] || (esMenor(b) - esMenor(a)) || (a.fecha < b.fecha ? 1 : -1); });
   var chips = [['pendientes','Pendientes'],['rojo','Rojo'],['amarillo','Amarillo'],['verde','Verde'],['todos','Todos']];
   var tabs = '<div class="chips"><button class="chip' + (S.tab === 'casos' ? ' on' : '') + '" data-a="tab" data-v="casos">Casos</button><button class="chip' + (S.tab === 'mapa' ? ' on' : '') + '" data-a="tab" data-v="mapa">Mapa por localidad</button><button class="chip' + (S.tab === 'stats' ? ' on' : '') + '" data-a="tab" data-v="stats">Estadísticas</button></div>';
   if (S.tab === 'stats') return header(true, 'Equipo de salud') + '<div class="stack"><h2>Estadísticas</h2><p class="muted small">Condiciones de vida, edad y género de quienes hicieron el chequeo.</p></div>' + tabs + statsHTML();
@@ -867,7 +895,9 @@ V.team = function(){
   '<div class="chips">' + chips.map(function(c){ return '<button class="chip' + (f === c[0] ? ' on' : '') + '" data-a="filtro" data-v="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>' +
   privacidadHTML() +
   '<div class="cases">' + (list.length ? list.map(tarjetaHTML).join('') : '<div class="card muted">No hay casos en esta vista.</div>') + '</div>' +
-  '<div class="card stack"><h3>Reglas de puntaje</h3><p class="small muted">El nivel se calcula con reglas fijas. Los puntos de corte y los textos de las preguntas son provisorios hasta que los valide el equipo clínico. Las preguntas sobre el día a día no modifican el nivel. El asistente con IA solo interpreta lo escrito y explica el resultado: no calcula el nivel.</p>' +
+  '<div class="card stack"><h3>Reglas de puntaje</h3>' +
+  '<p class="small"><strong>El nivel ordena a quién contactar primero.</strong> No es un diagnóstico ni una evaluación de riesgo: eso solo puede hacerlo el equipo interdisciplinario en cada caso (Ley 26.657, art. 5).</p>' +
+  '<p class="small muted">El nivel se calcula con reglas fijas. Los puntos de corte y los textos de las preguntas son provisorios hasta que los valide el equipo clínico. Las preguntas sobre el día a día no modifican el nivel. El asistente con IA solo interpreta lo escrito y explica el resultado: no calcula el nivel.</p>' +
   '<div class="wide"><table><tr><th>Nivel</th><th>Regla</th></tr>' +
   '<tr><td><span class="pill rojo">Rojo</span></td><td>Ánimo o ansiedad de ' + RULES.rojo + ' puntos o más, o cualquier respuesta distinta de "Nunca" en la pregunta 9 de ánimo.</td></tr>' +
   '<tr><td><span class="pill amarillo">Amarillo</span></td><td>Ánimo o ansiedad entre ' + RULES.amarillo + ' y ' + (RULES.rojo - 1) + ' puntos.</td></tr>' +
@@ -975,6 +1005,7 @@ document.addEventListener('change', function(e){
   var id = e.target.id;
   if (id === 'consent'){ readForm(); S.consent = e.target.checked; render(); }
   else if (id === 'contacto'){ readForm(); S.contacto = e.target.checked; render(); }
+  else if (id === 'edad'){ var y = window.scrollY; readForm(); render(); window.scrollTo(0, y); }
 });
 
 document.addEventListener('submit', function(e){

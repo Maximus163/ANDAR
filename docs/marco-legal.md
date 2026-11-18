@@ -1,6 +1,6 @@
 # Andar y la Ley Nacional de Salud Mental
 
-Revisión del prototipo frente a la Ley 26.657 de Salud Mental y la Ley 27.130 de Prevención del Suicidio, hecha el 18 de noviembre de 2026 sobre la versión 15.
+Revisión del prototipo frente a la Ley 26.657 de Salud Mental y la Ley 27.130 de Prevención del Suicidio, hecha el 18 de noviembre de 2026 sobre la versión 15. Los ajustes que salieron de esta revisión se hicieron en las versiones 16 y 17.
 
 Es una revisión técnica del funcionamiento de la app, no un dictamen jurídico. Antes de un piloto con vecinos tiene que revisarla el área legal, que además debería sumar el Decreto 603/2013 (reglamentación de la Ley 26.657), la Ley 26.529 de Derechos del Paciente y la Ley 25.326 de Protección de Datos Personales.
 
@@ -40,17 +40,25 @@ La ley protege la intimidad de la persona y obliga a guardar confidencialidad a 
 
 Hoy la persona marca "Entiendo que es una orientación y acepto responder las preguntas". Eso es un consentimiento, pero no explica qué pasa con lo que responde. Para que sea informado, antes de empezar tendría que decir en pocas palabras qué datos se guardan, quién los ve (el equipo de salud), para qué se usan, que todo es optativo y que puede dejar de responder cuando quiera. Si acepta que la llamen, también tiene que saber quién la va a llamar y para qué.
 
+**Resuelto en la versión 17.** Antes de empezar aparece "Lo que tenés que saber": es voluntario, qué pasa con las respuestas (en el enlace común no se guardan ni se envían; en el modo con servidor llegan al equipo y las estadísticas se arman sin datos personales) y que ante una señal de alarma se muestran teléfonos de ayuda. La casilla ahora dice "Leí lo anterior…".
+
+En la revisión apareció otro problema: en el enlace común la app ofrecía "Acepto que el equipo de salud me contacte" y después decía "el equipo se va a comunicar con vos", pero ese aviso no le llegaba a nadie. Ahora el pedido de contacto solo aparece cuando el aviso llega de verdad a un equipo.
+
 ### 3. Las palabras "riesgo" y "urgente" (art. 5)
 
 La ley dice que un diagnóstico no autoriza a presumir riesgo, y que el riesgo solo surge de una evaluación interdisciplinaria. El chequeo no diagnostica, pero en el tablero el motivo dice "Respuesta positiva en la pregunta de riesgo", y eso se puede leer como una evaluación de riesgo ya hecha.
 
 Propuesta: cambiar el motivo por algo descriptivo, como "Respondió la pregunta 9 con una opción distinta de Nunca", y sumar en el tablero una aclaración: el nivel indica a quién contactar primero y no reemplaza la evaluación del equipo interdisciplinario. "Urgente" puede quedar, porque se refiere a la prioridad de contacto y no a la persona.
 
+**Resuelto en la versión 17.** El motivo ahora dice "Pregunta 9 respondida con una opción distinta de Nunca" o "Mencionó ideas de hacerse daño en la conversación", y las reglas de puntaje del tablero aclaran que el nivel ordena a quién contactar primero y no es un diagnóstico ni una evaluación de riesgo.
+
 ### 4. Niñas, niños y adolescentes (art. 26; Ley 27.130, arts. 8 y 12)
 
 La app permite elegir "menos de 18 años", pero el PHQ-9 y el GAD-7 que usa son las versiones para adultos, y para adolescentes rigen además las normas de protección de la infancia. La Ley 27.130 pide dar prioridad a niñas, niños y adolescentes, y prevé la notificación a la autoridad de protección cuando hubo un intento de suicidio.
 
 Propuesta: que el equipo clínico defina el protocolo para menores de 18 (qué cuestionario usar, a partir de qué edad y a quién se avisa). Mientras tanto, si alguien elige "menos de 18", la app podría mostrar un mensaje propio con líneas de ayuda para adolescentes y marcar el caso en el tablero.
+
+**Resuelto en parte en la versión 17.** Si la persona elige "menos de 18", antes de empezar ve un aviso de que las preguntas son para adultos, y en el resultado y en la pantalla de crisis aparece un recuadro con la línea 102 de derechos de niñas, niños y adolescentes de la provincia de Buenos Aires. En el tablero, la vista profesional marca esos casos y, dentro de cada color, los pone primero en la lista de pendientes. El número y el texto son provisorios. Sigue pendiente lo de fondo: el protocolo del equipo clínico para adolescentes.
 
 ## Para el piloto con datos reales
 
