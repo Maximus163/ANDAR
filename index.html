@@ -126,6 +126,20 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .send{flex-wrap:nowrap} .send input{flex:1;min-width:0} .sendbtn{width:auto;flex:none}
 .aiout{white-space:pre-wrap;overflow-wrap:anywhere}
 .chip[disabled]{opacity:.5;cursor:not-allowed}
+/* Tablero del equipo en pantallas grandes (PC, televisor). En el celular queda en una columna. */
+.cases,.maplay,.mapcol{display:flex;flex-direction:column;gap:18px}
+.cases{gap:12px}
+@media (min-width:900px){
+  body[data-view="team"] #app{max-width:1280px;padding:28px 32px 48px}
+  .cases{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;align-items:start}
+  .maplay{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px;align-items:start}
+  .loc{min-height:84px;font-size:13px;padding:8px 6px}
+  .loc b{font-size:22px}
+}
+/* Televisor: lo mismo, más grande para leerlo de lejos */
+@media (min-width:1800px){
+  body[data-view="team"] #app{max-width:1500px;zoom:1.2}
+}
 </style>
 </head>
 <body>
@@ -281,14 +295,14 @@ function mapaHTML(){
     return '<tr><td>' + esc(k) + '</td><td class="n">' + o.n + '</td><td class="n">' + o.x + '</td><td class="n"><strong>' + (o.step < 0 ? 'pocos datos' : o.pct + '%') + '</strong></td></tr>';
   }).join('');
   return '<div class="notice"><strong>Datos de ejemplo.</strong> Las cantidades son inventadas para mostrar cómo se vería el mapa. Los chequeos hechos en este dispositivo se suman a su localidad.</div>' + chips +
-    '<div class="card stack"><div class="row between"><h3>' + M.t + '</h3><span class="small muted">' + tot.x + ' de ' + tot.n + '</span></div>' +
+    '<div class="maplay"><div class="mapcol"><div class="card stack"><div class="row between"><h3>' + M.t + '</h3><span class="small muted">' + tot.x + ' de ' + tot.n + '</span></div>' +
     '<p class="small muted">' + M.d + '</p>' +
     '<div class="map" role="group" aria-label="Mapa esquemático de localidades de La Matanza">' + tiles + '</div>' +
     '<div class="legend"><span>Menos</span><i style="background:var(--s0)"></i><i style="background:var(--s1)"></i><i style="background:var(--s2)"></i><i style="background:var(--s3)"></i><i style="background:var(--s4)"></i><span>Más</span><span>· menos de 10%, 10 a 19, 20 a 29, 30 a 39, 40% o más</span></div>' +
-    '<p class="small muted">Mapa esquemático: la ubicación de cada localidad es aproximada. Arriba, el límite con CABA y Morón; abajo, el sudoeste del partido.</p></div>' +
-    det +
+    '<p class="small muted">Mapa esquemático: la ubicación de cada localidad es aproximada. Arriba, el límite con CABA y Morón; abajo, el sudoeste del partido.</p></div></div>' +
+    '<div class="mapcol">' + det +
     '<div class="card stack"><h3>Detalle por localidad</h3><div class="wide"><table><tr><th>Localidad</th><th class="n">' + (esM ? 'Chequeos' : 'Respuestas') + '</th><th class="n">' + (esM ? 'A atender' : 'Con dificultad') + '</th><th class="n">%</th></tr>' + filas + '</table></div>' +
-    '<p class="small muted">El mapa usa solo la localidad declarada, sin datos personales.</p></div>';
+    '<p class="small muted">El mapa usa solo la localidad declarada, sin datos personales.</p></div></div></div>';
 }
 
 var ICO = {
@@ -535,7 +549,7 @@ V.team = function(){
   '<div class="stack"><h2>Tablero de seguimiento</h2><p class="muted small">Los casos marcados como ejemplo son datos de prueba. Los chequeos hechos en este dispositivo se suman a la lista.</p></div>' + tabs +
   '<div class="stats"><div class="stat rojo"><b>' + n.rojo + '</b>Rojo</div><div class="stat amarillo"><b>' + n.amarillo + '</b>Amarillo</div><div class="stat verde"><b>' + n.verde + '</b>Verde</div></div>' +
   '<div class="chips">' + chips.map(function(c){ return '<button class="chip' + (f === c[0] ? ' on' : '') + '" data-a="filtro" data-v="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>' +
-  '<div class="stack">' + (list.length ? list.map(function(c){
+  '<div class="cases">' + (list.length ? list.map(function(c){
     return '<div class="card case ' + c.nivel + ' stack"><div class="row between"><strong>' + esc(c.alias || 'Sin nombre') + '</strong><span class="row"><span class="pill ' + c.nivel + '">' + NOMBRE[c.nivel] + '</span>' + (c.demo ? '<span class="pill neutral">Ejemplo</span>' : '') + '</span></div>' +
       '<div class="small muted">' + esc(fecha(c.fecha)) + (c.localidad ? ' · ' + esc(c.localidad) : '') + '</div>' +
       '<div class="small scores">Ánimo <strong>' + c.phq + '</strong>/' + RULES.phqMax + ' · Ansiedad <strong>' + c.gad + '</strong>/' + RULES.gadMax + ' · ' + esc(c.motivo) + '</div>' +
@@ -553,6 +567,7 @@ V.team = function(){
 };
 
 function render(){
+  document.body.setAttribute('data-view', S.view);
   document.getElementById('app').innerHTML = V[S.view]();
   if (S.view === 'chat'){
     window.scrollTo(0, document.documentElement.scrollHeight);
