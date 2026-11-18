@@ -4,7 +4,7 @@
 // Cada vez que publiques cambios en la app, subí el número de VERSION.
 // Así los celulares que ya la tienen instalada bajan la versión nueva.
 
-const VERSION = "andar-v5";
+const VERSION = "andar-v6";
 
 const ARCHIVOS = [
   "./",
@@ -46,9 +46,11 @@ self.addEventListener("fetch", evento => {
   if (new URL(pedido.url).origin !== self.location.origin) return;   // el servidor de prueba va directo, sin copia
 
   if (pedido.mode === "navigate") {
-    // La página: primero internet, para tener siempre la última versión; sin conexión, la copia guardada
+    // La página: primero internet, para tener siempre la última versión; sin conexión, la copia guardada.
+    // "no-cache" obliga a preguntarle al servidor: GitHub Pages deja que el navegador guarde la página
+    // 10 minutos, y sin esto se seguía viendo la versión anterior justo después de publicar.
     evento.respondWith(
-      fetch(pedido)
+      fetch(pedido.url, { cache: "no-cache", credentials: "same-origin" })
         .then(respuesta => {
           if (respuesta.ok) {
             const copia = respuesta.clone();
