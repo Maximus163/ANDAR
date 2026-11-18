@@ -5,7 +5,7 @@
 // Así los celulares que ya la tienen instalada bajan la versión nueva.
 // Tiene que coincidir con VERSION_APP en index.html, que es la que se ve al pie del inicio.
 
-const VERSION = "andar-v19";
+const VERSION = "andar-v20";
 
 const ARCHIVOS = [
   "./",
