@@ -279,7 +279,7 @@ var NOMBRE = { verde: 'Verde', amarillo: 'Amarillo', rojo: 'Rojo' };
 var NIVEL_DESC = { rojo: ['Urgente', 'Contactar lo antes posible'], amarillo: ['Atención', 'Ofrecer una consulta pronto'], verde: ['Sin alarma', 'Seguimiento habitual'] };
 // Versión publicada: se muestra al pie del inicio para saber si el celular ya tiene la última.
 // Tiene que ser igual a VERSION en sw.js (lo controla tests/version.test.js). Subir las dos en cada publicación.
-var VERSION_APP = 'andar-v17', VERSION_FECHA = '18/11/2026';
+var VERSION_APP = 'andar-v18', VERSION_FECHA = '18/11/2026';
 var KEY = 'misalud.comoestoy.casos';
 
 var S = { view: 'home', i: 0, phq: [], gad: [], consent: false, alias: '', localidad: '', edad: '', genero: '', contacto: false, tel: '', result: null, filtro: 'pendientes', tab: 'casos', loc: '', metric: 'malestar', ctx: {}, ci: 0, chat: [], busy: false, typed: false, ai: { busy:false, text:'', q:'', err:'' }, casos: [] };
@@ -1003,9 +1003,10 @@ document.addEventListener('click', function(e){
 
 document.addEventListener('change', function(e){
   var id = e.target.id;
-  if (id === 'consent'){ readForm(); S.consent = e.target.checked; render(); }
-  else if (id === 'contacto'){ readForm(); S.contacto = e.target.checked; render(); }
-  else if (id === 'edad'){ var y = window.scrollY; readForm(); render(); window.scrollTo(0, y); }
+  // Al marcar una casilla o elegir la edad se redibuja la pantalla: se mantiene donde estaba la persona, sin saltar arriba.
+  if (id === 'consent'){ readForm(); S.consent = e.target.checked; renderKeep(); var b = document.querySelector('[data-a=start],[data-a=startchat]'); if (b && S.consent) try { b.focus({ preventScroll: true }); } catch(err){} }
+  else if (id === 'contacto'){ readForm(); S.contacto = e.target.checked; renderKeep(); var t = document.getElementById('tel'); if (t) try { t.focus({ preventScroll: true }); } catch(err){} }
+  else if (id === 'edad'){ readForm(); renderKeep(); }
 });
 
 document.addEventListener('submit', function(e){
