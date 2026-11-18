@@ -63,6 +63,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .tile.main{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);grid-column:1 / -1;min-height:150px}
 .tile.main .tname{font-family:var(--display);font-size:26px;font-weight:700;line-height:1.1}
 .tile.off{opacity:.6;cursor:default}
+.soon{gap:8px}
+.soon-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.soon .tile{min-height:0;padding:12px 8px;align-items:center;justify-content:flex-start;gap:6px;text-align:center}
+.soon .tname{font-size:13px;line-height:1.2}
+.soon .ico{width:22px;height:22px}
 .tname{font-weight:700}
 .tag{font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--muted)}
 .ico{width:26px;height:26px}
@@ -106,6 +111,12 @@ ul.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .case{border-left:6px solid var(--line)}
 .case.rojo{border-left-color:var(--crit)} .case.amarillo{border-left-color:var(--warn)} .case.verde{border-left-color:var(--ok)}
 .scores{font-variant-numeric:tabular-nums}
+.escala{display:flex;flex-direction:column;gap:6px}
+.meter{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.meter i{height:8px;border-radius:99px;background:var(--line)}
+.meter i.verde{background:var(--ok)} .meter i.amarillo{background:var(--warn)} .meter i.rojo{background:var(--crit)}
+details summary{cursor:pointer;color:var(--accent);font-weight:600}
+details p{margin-top:6px}
 table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{text-align:left;padding:8px 6px;border-top:1px solid var(--line);vertical-align:top}
 th{font-weight:700;border-top:0}
@@ -124,6 +135,8 @@ th{font-weight:700;border-top:0}
 .legend{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);flex-wrap:wrap}
 .legend i{display:inline-block;width:22px;height:12px;border-radius:3px}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.nom-corto{display:none}
+@media (max-width:480px){ .nom-largo{display:none} .nom-corto{display:inline;white-space:nowrap} th,td{padding:8px 4px} }
 .chat{display:flex;flex-direction:column;gap:8px}
 .msg{display:flex;flex-direction:column;gap:2px;max-width:86%}
 .msg.bot{align-self:flex-start} .msg.yo{align-self:flex-end;align-items:flex-end}
@@ -132,6 +145,13 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .send{flex-wrap:nowrap} .send input{flex:1;min-width:0} .sendbtn{width:auto;flex:none}
 .aiout{white-space:pre-wrap;overflow-wrap:anywhere}
 .chip[disabled]{opacity:.5;cursor:not-allowed}
+.hdr-acc{gap:14px;flex-wrap:nowrap}
+.aa{display:inline-flex;align-items:baseline;gap:1px;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:4px 9px;font-weight:700;font-size:14px;color:var(--ink);line-height:1.2}
+.aa span{font-size:19px}
+.aa[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+/* Letra grande: agranda toda la columna de la app (en el celular sigue ocupando el mismo ancho) */
+body.grande #app{zoom:1.2}
+@media (min-width:1800px){ body.grande[data-view="team"] #app{zoom:1.4} }
 .version{font-size:12px;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
 .modal{position:fixed;inset:0;background:rgba(6,20,24,.55);display:grid;place-items:center;padding:16px;z-index:10}
 .modal .card{width:100%;max-width:420px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
@@ -207,7 +227,7 @@ var CONTACTOS = [
 var NOMBRE = { verde: 'Verde', amarillo: 'Amarillo', rojo: 'Rojo' };
 // Versión publicada: se muestra al pie del inicio para saber si el celular ya tiene la última.
 // Tiene que ser igual a VERSION en sw.js (lo controla tests/version.test.js). Subir las dos en cada publicación.
-var VERSION_APP = 'andar-v7', VERSION_FECHA = '18/11/2026';
+var VERSION_APP = 'andar-v8', VERSION_FECHA = '18/11/2026';
 var KEY = 'misalud.comoestoy.casos';
 
 var S = { view: 'home', i: 0, phq: [], gad: [], consent: false, alias: '', localidad: '', contacto: false, tel: '', result: null, filtro: 'pendientes', tab: 'casos', loc: '', metric: 'malestar', ctx: {}, ci: 0, chat: [], busy: false, typed: false, ai: { busy:false, text:'', q:'', err:'' }, casos: [] };
@@ -343,7 +363,8 @@ function mapaHTML(){
     : '<div class="card small muted">Tocá una localidad para ver el detalle.</div>';
   var filas = Object.keys(d).sort(function(a, b){ return (d[b].step < 0 ? -1 : d[b].pct) - (d[a].step < 0 ? -1 : d[a].pct) || d[b].n - d[a].n; }).map(function(k){
     var o = d[k];
-    return '<tr><td>' + esc(k) + '</td><td class="n">' + o.n + '</td><td class="n">' + o.x + '</td><td class="n"><strong>' + (o.step < 0 ? 'pocos datos' : o.pct + '%') + '</strong></td></tr>';
+    var corto = (MAPA.filter(function(m){ return m[0] === k; })[0] || [k, k])[1];
+    return '<tr><td><span class="nom-largo">' + esc(k) + '</span><span class="nom-corto" title="' + esc(k) + '">' + esc(corto) + '</span></td><td class="n">' + o.n + '</td><td class="n">' + o.x + '</td><td class="n"><strong>' + (o.step < 0 ? 'pocos datos' : o.pct + '%') + '</strong></td></tr>';
   }).join('');
   return '<div class="notice"><strong>Datos de ejemplo.</strong> Las cantidades son inventadas para mostrar cómo se vería el mapa. ' + (NUBE ? 'Los chequeos del servidor de prueba se suman a su localidad.' : 'Los chequeos hechos en esta pantalla se suman a su localidad hasta que se cierra.') + '</div>' + chips +
     '<div class="maplay"><div class="mapcol"><div class="card stack"><div class="row between"><h3>' + M.t + '</h3><span class="small muted">' + tot.x + ' de ' + tot.n + '</span></div>' +
@@ -364,10 +385,26 @@ var ICO = {
   pill:'<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="8" width="18" height="8" rx="4" transform="rotate(-35 12 12)"/><path d="M9.2 7.9l5.6 8.2"/></svg>'
 };
 
+// Puntaje en palabras para el vecino. Usa los mismos cortes de RULES que classify, así nunca contradice el nivel.
+// Textos provisorios, a validar con el equipo clínico.
+var ESCALA = ['Sin malestar importante', 'Malestar leve', 'Malestar moderado', 'Malestar alto'];
+function escalon(p){ return p >= RULES.rojo ? 3 : p >= RULES.amarillo ? 2 : p >= RULES.leve ? 1 : 0; }
+function escalaHTML(label, puntos){
+  var e = escalon(puntos), cls = ['verde', 'verde', 'amarillo', 'rojo'][e];
+  return '<div class="escala"><div class="row between"><span>' + label + '</span><strong>' + ESCALA[e] + '</strong></div>' +
+    '<div class="meter" aria-hidden="true">' + [0,1,2,3].map(function(i){ return '<i class="' + (i <= e ? cls : '') + '"></i>'; }).join('') + '</div></div>';
+}
+
 function header(back, title){
   return '<div class="row between"><div class="brand"><div class="logo">' + ICO.heart + '</div><div><strong>' + esc(title || 'Andar') + '</strong></div></div>' +
-    (back ? '<button class="link" data-a="home">Inicio</button>' : '') + '</div>';
+    '<div class="row hdr-acc"><button class="aa" data-a="letra" aria-pressed="' + (LETRA_GRANDE ? 'true' : 'false') + '" aria-label="' + (LETRA_GRANDE ? 'Volver a la letra normal' : 'Agrandar la letra') + '" title="Tamaño de letra">A<span>A</span></button>' +
+    (back ? '<button class="link" data-a="home">Inicio</button>' : '') + '</div></div>';
 }
+
+// Letra más grande, para personas mayores o con poca vista. Se recuerda en este celular (es solo una preferencia).
+var LETRA_GRANDE = false;
+try { LETRA_GRANDE = localStorage.getItem('andar.letra') === 'grande'; } catch(e){}
+function aplicarLetra(){ document.body.classList.toggle('grande', LETRA_GRANDE); }
 
 var TEL_ICO = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>';
 function contactosHTML(desde){
@@ -485,10 +522,12 @@ V.home = function(){
   '<div class="stack"><h1>Hola, ¿qué necesitás hoy?</h1><p class="muted">Tu salud, cerca de tu casa. Gratis y para todos los vecinos y vecinas de La Matanza.</p></div>' +
   '<div class="tiles">' +
     '<button class="tile main" data-a="intro">' + ICO.face + '<div><div class="tname">¿Cómo estoy?</div><div>Tomate cinco minutos para ver cómo venís. Es gratis y nadie te va a juzgar.</div></div></button>' +
-    '<div class="tile off">' + ICO.cal + '<div><div class="tname">Mis turnos</div><div class="tag">Próximamente</div></div></div>' +
-    '<div class="tile off">' + ICO.doc + '<div><div class="tname">Mis estudios</div><div class="tag">Próximamente</div></div></div>' +
-    '<div class="tile off">' + ICO.pill + '<div><div class="tname">Mis medicamentos</div><div class="tag">Próximamente</div></div></div>' +
   '</div>' +
+  '<div class="stack soon"><div class="tag">Próximamente</div><div class="soon-row">' +
+    '<div class="tile off">' + ICO.cal + '<div class="tname">Mis turnos</div></div>' +
+    '<div class="tile off">' + ICO.doc + '<div class="tname">Mis estudios</div></div>' +
+    '<div class="tile off">' + ICO.pill + '<div class="tname">Mis medicamentos</div></div>' +
+  '</div></div>' +
   '<p class="small muted">Prototipo de demostración. Todavía no está validado por un equipo clínico.' + (NUBE ? ' <strong>Modo de prueba con servidor:</strong> usá solo datos inventados.' : '') + '</p>' +
   (EQUIPO_LINK ? '<button class="link small" data-a="team">Acceso para el equipo de salud (usuario: ' + DEMO_ACCESO.usuario + ', clave: ' + DEMO_ACCESO.clave + ')</button>' : '') +
   '<p class="version">Versión ' + VERSION_APP.replace('andar-v', '') + ' · ' + VERSION_FECHA + '</p>';
@@ -595,7 +634,8 @@ V.result = function(){
     '<form id="dudaform" class="row send"><input id="duda" type="text" maxlength="300" autocomplete="off" placeholder="O escribí tu duda" aria-label="Tu duda"' + (S.ai.busy ? ' disabled' : '') + '><button class="btn sendbtn" type="submit"' + (S.ai.busy ? ' disabled' : '') + '>Preguntar</button></form>' +
     '<p class="small muted">Respuesta generada por inteligencia artificial. No es un diagnóstico y no cambia tu resultado.</p></div>';
   return header(true, '¿Cómo estoy?') + body +
-    '<div class="card small scores"><div class="row between"><span>Estado de ánimo</span><strong>' + r.phq + ' de ' + RULES.phqMax + '</strong></div><div class="row between"><span>Preocupación y nervios</span><strong>' + r.gad + ' de ' + RULES.gadMax + '</strong></div></div>' +
+    '<div class="card stack scores">' + escalaHTML('Estado de ánimo', r.phq) + escalaHTML('Preocupación y nervios', r.gad) +
+      '<details class="small muted"><summary>Ver puntaje</summary><p>Estado de ánimo: ' + r.phq + ' de ' + RULES.phqMax + '. Preocupación y nervios: ' + r.gad + ' de ' + RULES.gadMax + '. Podés mostrárselo al profesional que te atienda.</p></details></div>' +
     '<p class="small muted">Este resultado es una orientación y no un diagnóstico.</p>' +
     '<button class="btn" data-a="home">Volver al inicio</button>';
 };
@@ -700,6 +740,7 @@ document.addEventListener('click', function(e){
   var el = e.target.closest('[data-a]'); if (!el || el.disabled) return;
   var a = el.getAttribute('data-a'), v = el.getAttribute('data-v'), keep = false;
   if (a === 'home'){ if (enCurso()){ S.confirmSalir = true; keep = true; } else S.view = 'home'; }
+  else if (a === 'letra'){ LETRA_GRANDE = !LETRA_GRANDE; try { localStorage.setItem('andar.letra', LETRA_GRANDE ? 'grande' : 'normal'); } catch(e){} aplicarLetra(); keep = true; }
   else if (a === 'seguir'){ S.confirmSalir = false; keep = true; }
   else if (a === 'salirok'){ S.confirmSalir = false; S.view = 'home'; }
   else if (a === 'intro'){ S.view = 'intro'; S.consent = false; S.i = 0; S.phq = []; S.gad = []; S.ctx = {}; S.result = null; S.chat = []; S.busy = false; S.ai = { busy:false, text:'', q:'', err:'' }; pedirIA(); }
@@ -759,6 +800,7 @@ document.addEventListener('submit', function(e){
 });
 
 S.casos = NUBE ? [] : DEMO.slice();
+aplicarLetra();
 pedirIA();
 render();
 
