@@ -67,7 +67,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .ico{width:26px;height:26px}
 .field{display:flex;flex-direction:column;gap:6px}
 .field label{font-weight:600;font-size:14px}
-input[type=text],input[type=tel],select{font:inherit;color:var(--ink);background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:12px;width:100%}
+input[type=text],input[type=tel],input[type=password],select{font:inherit;color:var(--ink);background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:12px;width:100%}
 .check{display:flex;gap:10px;align-items:flex-start}
 .check input{width:22px;height:22px;margin-top:1px;accent-color:var(--accent);flex:none}
 .notice{background:var(--accent-soft);border-radius:12px;padding:12px 14px;font-size:14px}
@@ -450,6 +450,13 @@ function iaResultado(pregunta){
   });
 }
 
+// Ingreso al tablero: solo de demostración. Se comprueba en el propio celular y la clave está a la vista,
+// así que no protege nada. Para datos reales hace falta un ingreso de verdad en el servidor.
+var DEMO_ACCESO = { usuario: 'Salud', clave: '123456' };
+function sesionGuardada(){ try { return sessionStorage.getItem('andar.equipo') === '1'; } catch(e){ return false; } }
+function guardarSesion(si){ try { if (si) sessionStorage.setItem('andar.equipo', '1'); else sessionStorage.removeItem('andar.equipo'); } catch(e){} }
+S.equipo = sesionGuardada();
+
 var V = {};
 
 V.home = function(){
@@ -462,7 +469,18 @@ V.home = function(){
     '<div class="tile off">' + ICO.pill + '<div><div class="tname">Mis medicamentos</div><div class="tag">Próximamente</div></div></div>' +
   '</div>' +
   '<p class="small muted">Prototipo de demostración. Todavía no está validado por un equipo clínico.' + (NUBE ? ' <strong>Modo de prueba con servidor:</strong> usá solo datos inventados.' : '') + '</p>' +
-  '<button class="link small" data-a="team">Acceso para el equipo de salud</button>';
+  '<button class="link small" data-a="team">Acceso para el equipo de salud (usuario: ' + DEMO_ACCESO.usuario + ', clave: ' + DEMO_ACCESO.clave + ')</button>';
+};
+
+V.login = function(){
+  return header(true, 'Equipo de salud') +
+  '<div class="stack"><h2>Ingreso del equipo</h2><p class="muted small">Es una demostración: el usuario y la clave están a la vista en la pantalla de inicio. No protege datos reales.</p></div>' +
+  '<form id="loginform" class="card stack">' +
+    '<div class="field"><label for="usuario">Usuario</label><input id="usuario" type="text" autocomplete="username" autocapitalize="none" value="' + esc(S.loginUsuario || '') + '"></div>' +
+    '<div class="field"><label for="clave">Clave</label><input id="clave" type="password" autocomplete="current-password" inputmode="numeric"></div>' +
+    (S.loginError ? '<p class="small" role="alert"><strong>El usuario o la clave no son correctos.</strong> Probá de nuevo.</p>' : '') +
+    '<button class="btn" type="submit">Entrar</button>' +
+  '</form>';
 };
 
 V.intro = function(){
@@ -605,7 +623,8 @@ V.team = function(){
   '<tr><td><span class="pill rojo">Rojo</span></td><td>Ánimo o ansiedad de ' + RULES.rojo + ' puntos o más, o cualquier respuesta distinta de "Nunca" en la pregunta 9 de ánimo.</td></tr>' +
   '<tr><td><span class="pill amarillo">Amarillo</span></td><td>Ánimo o ansiedad entre ' + RULES.amarillo + ' y ' + (RULES.rojo - 1) + ' puntos.</td></tr>' +
   '<tr><td><span class="pill verde">Verde</span></td><td>Ambos por debajo de ' + RULES.amarillo + ' puntos. Entre ' + RULES.leve + ' y ' + (RULES.amarillo - 1) + ' se sugiere repetir el chequeo en dos semanas.</td></tr></table></div></div>' +
-  (NUBE ? '' : '<button class="link small" data-a="borrar">Borrar los chequeos guardados en este dispositivo</button>');
+  (NUBE ? '' : '<button class="link small" data-a="borrar">Borrar los chequeos guardados en este dispositivo</button>') +
+  '<button class="link small" data-a="salir">Cerrar sesión del equipo</button>';
 };
 
 function render(){
@@ -655,7 +674,8 @@ document.addEventListener('click', function(e){
   else if (a === 'ctx'){ S.ctx[CTX[S.ci].k] = Number(v) < 0 ? null : Number(v); S.ci++; if (S.ci >= CTX.length) finalizar(); }
   else if (a === 'ctxfin'){ finalizar(); }
   else if (a === 'metric'){ S.metric = v; keep = true; }
-  else if (a === 'team'){ S.view = 'team'; traerCasos(); }
+  else if (a === 'team'){ if (S.equipo){ S.view = 'team'; traerCasos(); } else { S.view = 'login'; S.loginError = false; } }
+  else if (a === 'salir'){ S.equipo = false; guardarSesion(false); S.view = 'home'; }
   else if (a === 'filtro'){ S.filtro = v; }
   else if (a === 'tab'){ S.tab = v; }
   else if (a === 'loc'){ S.loc = S.loc === v ? '' : v; keep = true; }
@@ -682,6 +702,14 @@ document.addEventListener('submit', function(e){
   e.preventDefault();
   var id = e.target.id;
   if (id === 'chatform'){ var a = document.getElementById('chatin'); enviarChat(a ? a.value : ''); }
+  else if (id === 'loginform'){
+    var u = (document.getElementById('usuario') || {}).value || '', k = (document.getElementById('clave') || {}).value || '';
+    S.loginUsuario = u;
+    if (u.trim().toLowerCase() === DEMO_ACCESO.usuario.toLowerCase() && k.trim() === DEMO_ACCESO.clave){
+      S.equipo = true; S.loginError = false; guardarSesion(true); S.view = 'team'; traerCasos();
+    } else { S.loginError = true; }
+    render();
+  }
   else if (id === 'dudaform'){ var d = document.getElementById('duda'); if (d && d.value.trim()) iaResultado(d.value); }
 });
 

@@ -4,7 +4,7 @@
 // Cada vez que publiques cambios en la app, subí el número de VERSION.
 // Así los celulares que ya la tienen instalada bajan la versión nueva.
 
-const VERSION = "andar-v3";
+const VERSION = "andar-v4";
 
 const ARCHIVOS = [
   "./",
