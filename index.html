@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Andar</title>
+<meta name="theme-color" content="#0e6b78">
+<meta name="description" content="Salud cerca, desde el celular. Prototipo para los vecinos de La Matanza.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Andar">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -616,6 +622,13 @@ document.addEventListener('submit', function(e){
 S.casos = DEMO.concat(load());
 pedirIA();
 render();
+
+// Instalable y sin conexión: solo en https o localhost, no abierto como archivo ni dentro de claude.ai
+if ('serviceWorker' in navigator && window.isSecureContext && location.protocol !== 'file:' && !window.claude){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(e){ console.warn('No se pudo activar el modo sin conexión:', e); });
+  });
+}
 </script>
 </body>
 </html>

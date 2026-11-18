@@ -18,6 +18,13 @@ Es un prototipo. Todavía no fue validado por un equipo clínico y no debe usars
 
 Es un solo archivo, `index.html`. Se abre directamente en el navegador, sin instalar nada.
 
+También está publicada en https://maximus163.github.io/ANDAR/ y se puede instalar en el celular:
+
+- **Android:** abrila en Chrome y tocá "Instalar app" o, desde el menú ⋮, "Agregar a la pantalla principal".
+- **iPhone:** abrila en Safari y tocá Compartir → "Agregar a inicio".
+
+Una vez instalada abre aunque no haya conexión. Cuando publiques cambios, subí el número de `VERSION` en `sw.js` para que los celulares bajen la versión nueva.
+
 Los chequeos se guardan solo en el navegador donde se hacen. Los casos y los números del mapa que vienen cargados son inventados.
 
 ## Sobre la inteligencia artificial
