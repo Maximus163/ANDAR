@@ -257,7 +257,7 @@ var NOMBRE = { verde: 'Verde', amarillo: 'Amarillo', rojo: 'Rojo' };
 var NIVEL_DESC = { rojo: ['Urgente', 'Contactar lo antes posible'], amarillo: ['Atención', 'Ofrecer una consulta pronto'], verde: ['Sin alarma', 'Seguimiento habitual'] };
 // Versión publicada: se muestra al pie del inicio para saber si el celular ya tiene la última.
 // Tiene que ser igual a VERSION en sw.js (lo controla tests/version.test.js). Subir las dos en cada publicación.
-var VERSION_APP = 'andar-v12', VERSION_FECHA = '18/11/2026';
+var VERSION_APP = 'andar-v13', VERSION_FECHA = '18/11/2026';
 var KEY = 'misalud.comoestoy.casos';
 
 var S = { view: 'home', i: 0, phq: [], gad: [], consent: false, alias: '', localidad: '', edad: '', genero: '', contacto: false, tel: '', result: null, filtro: 'pendientes', tab: 'casos', loc: '', metric: 'malestar', ctx: {}, ci: 0, chat: [], busy: false, typed: false, ai: { busy:false, text:'', q:'', err:'' }, casos: [] };
@@ -780,13 +780,13 @@ V.team = function(){
   }).join('') + '</div>' +
   '<div class="chips">' + chips.map(function(c){ return '<button class="chip' + (f === c[0] ? ' on' : '') + '" data-a="filtro" data-v="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>' +
   '<div class="cases">' + (list.length ? list.map(function(c){
-    return '<div class="card case ' + c.nivel + ' stack"><div class="row between"><strong>' + esc(c.alias || 'Sin nombre') + '</strong><span class="row"><span class="pill ' + c.nivel + '">' + NOMBRE[c.nivel] + '</span>' + (c.demo ? '<span class="pill neutral">Ejemplo</span>' : c.prueba ? '<span class="pill neutral">Prueba</span>' : '') + '</span></div>' +
+    return '<div class="card case ' + c.nivel + ' stack"><div class="row between"><strong>' + esc(c.alias || 'Sin nombre') + '</strong><span class="row"><span class="pill ' + c.nivel + '">' + NOMBRE[c.nivel] + '</span>' + (c.demo ? '<span class="pill neutral">Ejemplo</span>' : '') + '</span></div>' +
       (c.subido === false ? '<div class="small"><strong>No se pudo enviar al servidor.</strong> Se ve solo en este dispositivo.</div>' : '') +
       '<div class="small muted">' + [fecha(c.fecha), c.localidad, edadTxt(c.edad), c.genero].filter(Boolean).map(esc).join(' · ') + '</div>' +
       '<div class="small scores">Ánimo <strong>' + c.phq + '</strong>/' + RULES.phqMax + ' · Ansiedad <strong>' + c.gad + '</strong>/' + RULES.gadMax + ' · ' + esc(c.motivo) + '</div>' +
       (necesidades(c.ctx).length ? '<div class="row">' + necesidades(c.ctx).map(function(n){ return '<span class="pill neutral">' + esc(n) + '</span>'; }).join('') + '</div>' : '') +
       '<div class="small">' + (c.contacto ? 'Acepta contacto: <strong>' + esc(c.tel || 'sin teléfono cargado') + '</strong>' : 'No dejó datos de contacto') + '</div>' +
-      (c.nivel !== 'verde' ? '<div class="row between"><span class="small">Estado: <strong>' + esc(c.estado) + '</strong></span><button class="chip" data-a="estado" data-v="' + esc(c.id) + '">' + (c.estado === 'Pendiente' ? 'Marcar como contactado' : 'Volver a pendiente') + '</button></div>' : '') +
+      (c.nivel !== 'verde' ? '<div class="row between"><span class="small">Estado: <span class="pill ' + (c.estado === 'Pendiente' ? 'rojo' : 'verde') + '">' + esc(c.estado) + '</span></span><button class="chip" data-a="estado" data-v="' + esc(c.id) + '">' + (c.estado === 'Pendiente' ? 'Marcar como contactado' : 'Volver a pendiente') + '</button></div>' : '') +
       '</div>';
   }).join('') : '<div class="card muted">No hay casos en esta vista.</div>') + '</div>' +
   '<div class="card stack"><h3>Reglas de puntaje</h3><p class="small muted">El nivel se calcula con reglas fijas. Los puntos de corte y los textos de las preguntas son provisorios hasta que los valide el equipo clínico. Las preguntas sobre el día a día no modifican el nivel. El asistente con IA solo interpreta lo escrito y explica el resultado: no calcula el nivel.</p>' +
