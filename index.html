@@ -182,6 +182,8 @@ body.grande #app{zoom:1.2}
 .fund p{color:var(--ink);line-height:1.5}
 ul.fuentes{margin:8px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:6px;color:var(--muted)}
 @media (min-width:900px){ .fund-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 28px} }
+.privbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--accent-soft);border-radius:12px;padding:12px 14px;font-size:14px}
+.privbar.pro{background:var(--warn-soft);color:var(--ink);border:1.5px solid var(--warn)}
 .lema{font-size:13px;line-height:1.2;color:var(--accent);font-weight:600}
 .version{font-size:12px;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
 .modal{position:fixed;inset:0;background:rgba(6,20,24,.55);display:grid;place-items:center;padding:16px;z-index:10}
@@ -265,7 +267,7 @@ var NOMBRE = { verde: 'Verde', amarillo: 'Amarillo', rojo: 'Rojo' };
 var NIVEL_DESC = { rojo: ['Urgente', 'Contactar lo antes posible'], amarillo: ['Atención', 'Ofrecer una consulta pronto'], verde: ['Sin alarma', 'Seguimiento habitual'] };
 // Versión publicada: se muestra al pie del inicio para saber si el celular ya tiene la última.
 // Tiene que ser igual a VERSION en sw.js (lo controla tests/version.test.js). Subir las dos en cada publicación.
-var VERSION_APP = 'andar-v15', VERSION_FECHA = '18/11/2026';
+var VERSION_APP = 'andar-v16', VERSION_FECHA = '18/11/2026';
 var KEY = 'misalud.comoestoy.casos';
 
 var S = { view: 'home', i: 0, phq: [], gad: [], consent: false, alias: '', localidad: '', edad: '', genero: '', contacto: false, tel: '', result: null, filtro: 'pendientes', tab: 'casos', loc: '', metric: 'malestar', ctx: {}, ci: 0, chat: [], busy: false, typed: false, ai: { busy:false, text:'', q:'', err:'' }, casos: [] };
@@ -501,6 +503,55 @@ function escalaHTML(label, puntos){
   return '<div class="escala"><div class="row between"><span>' + label + '</span><strong>' + ESCALA[e] + '</strong></div>' +
     '<div class="meter" aria-hidden="true">' + [0,1,2,3].map(function(i){ return '<i class="' + (i <= e ? cls : '') + '"></i>'; }).join('') + '</div></div>';
 }
+
+// ---------- Pantalla compartida y vista profesional ----------
+// Ley 26.657 (art. 7, inc. l) y Ley 27.130 (art. 13): intimidad y confidencialidad.
+// El tablero arranca siempre en "pantalla compartida": sin nombres, teléfonos, puntajes ni motivos, para poder
+// dejarlo en un televisor. La vista profesional pide la clave otra vez y se vuelve a ocultar sola tras 3 minutos sin uso.
+var PRO_MINUTOS = 3;
+var PRO = { on: false, ultimo: 0, pidiendo: false, error: false };
+function iniciales(alias){
+  var p = String(alias || '').trim().split(/\s+/).filter(Boolean);
+  return p.length ? p.slice(0, 2).map(function(x){ return x.charAt(0).toUpperCase() + '.'; }).join(' ') : 'Sin nombre';
+}
+function haceTxt(iso){
+  var m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (m < 60) return 'hace ' + (m <= 1 ? '1 minuto' : m + ' minutos');
+  var h = Math.round(m / 60); if (h < 24) return 'hace ' + h + (h === 1 ? ' hora' : ' horas');
+  var d = Math.round(h / 24); return 'hace ' + d + (d === 1 ? ' día' : ' días');
+}
+function salirPro(){ PRO.on = false; PRO.pidiendo = false; PRO.error = false; }
+function privacidadHTML(){
+  return PRO.on
+    ? '<div class="privbar pro"><span><strong>Vista profesional.</strong> Se ven nombres, teléfonos y puntajes. Se vuelve a ocultar sola después de ' + PRO_MINUTOS + ' minutos sin uso.</span><button class="chip" data-a="ocultar">Ocultar datos personales</button></div>'
+    : '<div class="privbar"><span><strong>Pantalla compartida.</strong> Los datos personales están ocultos para que se pueda ver en un televisor o en una sala.</span><button class="chip on" data-a="verpro">Ver datos completos (profesional)</button></div>';
+}
+function tarjetaHTML(c){
+  var cabeza = '<div class="row between"><strong>' + esc(PRO.on ? (c.alias || 'Sin nombre') : iniciales(c.alias)) + '</strong><span class="row"><span class="pill ' + c.nivel + '">' + NOMBRE[c.nivel] + (PRO.on ? '' : ' · ' + NIVEL_DESC[c.nivel][0]) + '</span>' + (c.demo ? '<span class="pill neutral">Ejemplo</span>' : '') + '</span></div>';
+  var estado = c.nivel !== 'verde' ? '<span class="small">Estado: <span class="pill ' + (c.estado === 'Pendiente' ? 'rojo' : 'verde') + '">' + esc(c.estado) + '</span></span>' : '';
+  if (!PRO.on) return '<div class="card case ' + c.nivel + ' stack">' + cabeza +
+    '<div class="small muted">' + [c.localidad, haceTxt(c.fecha)].filter(Boolean).map(esc).join(' · ') + '</div>' + (estado ? '<div>' + estado + '</div>' : '') + '</div>';
+  return '<div class="card case ' + c.nivel + ' stack">' + cabeza +
+    (c.subido === false ? '<div class="small"><strong>No se pudo enviar al servidor.</strong> Se ve solo en este dispositivo.</div>' : '') +
+    '<div class="small muted">' + [fecha(c.fecha), c.localidad, edadTxt(c.edad), c.genero].filter(Boolean).map(esc).join(' · ') + '</div>' +
+    '<div class="small scores">Ánimo <strong>' + c.phq + '</strong>/' + RULES.phqMax + ' · Ansiedad <strong>' + c.gad + '</strong>/' + RULES.gadMax + ' · ' + esc(c.motivo) + '</div>' +
+    (necesidades(c.ctx).length ? '<div class="row">' + necesidades(c.ctx).map(function(n){ return '<span class="pill neutral">' + esc(n) + '</span>'; }).join('') + '</div>' : '') +
+    '<div class="small">' + (c.contacto ? 'Acepta contacto: <strong>' + esc(c.tel || 'sin teléfono cargado') + '</strong>' : 'No dejó datos de contacto') + '</div>' +
+    (estado ? '<div class="row between">' + estado + '<button class="chip" data-a="estado" data-v="' + esc(c.id) + '">' + (c.estado === 'Pendiente' ? 'Marcar como contactado' : 'Volver a pendiente') + '</button></div>' : '') +
+    '</div>';
+}
+function pedirClaveHTML(){
+  return '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="mpro"><form id="proform" class="card stack">' +
+    '<h3 id="mpro">Vista profesional</h3><p class="small">Vas a ver nombres, teléfonos y puntajes. Asegurate de que la pantalla no esté a la vista de otras personas.</p>' +
+    '<div class="field"><label for="proclave">Clave del equipo</label><input id="proclave" type="password" inputmode="numeric" autocomplete="current-password"></div>' +
+    (PRO.error ? '<p class="small" role="alert"><strong>La clave no es correcta.</strong></p>' : '') +
+    '<button class="btn" type="submit">Ver datos completos</button><button class="btn ghost" type="button" data-a="cancelarpro">Cancelar</button></form></div>';
+}
+// Cualquier toque o tecla cuenta como uso; si pasan 3 minutos sin uso, se vuelve a la pantalla compartida.
+['click', 'keydown', 'touchstart', 'scroll'].forEach(function(ev){ document.addEventListener(ev, function(){ if (PRO.on) PRO.ultimo = Date.now(); }, { passive: true }); });
+setInterval(function(){
+  if (PRO.on && Date.now() - PRO.ultimo > PRO_MINUTOS * 60000){ salirPro(); if (S.view === 'team') renderKeep(); }
+}, 10000);
 
 // De dónde salen las preguntas: fundamentos y fuentes para el equipo de salud.
 // Texto provisorio: revisar con el referente clínico antes de cualquier uso real.
@@ -814,16 +865,8 @@ V.team = function(){
     return '<div class="stat ' + k + '"><b>' + n[k] + '</b>' + NOMBRE[k] + '<small><strong>' + NIVEL_DESC[k][0] + '</strong>' + NIVEL_DESC[k][1] + '</small></div>';
   }).join('') + '</div>' +
   '<div class="chips">' + chips.map(function(c){ return '<button class="chip' + (f === c[0] ? ' on' : '') + '" data-a="filtro" data-v="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>' +
-  '<div class="cases">' + (list.length ? list.map(function(c){
-    return '<div class="card case ' + c.nivel + ' stack"><div class="row between"><strong>' + esc(c.alias || 'Sin nombre') + '</strong><span class="row"><span class="pill ' + c.nivel + '">' + NOMBRE[c.nivel] + '</span>' + (c.demo ? '<span class="pill neutral">Ejemplo</span>' : '') + '</span></div>' +
-      (c.subido === false ? '<div class="small"><strong>No se pudo enviar al servidor.</strong> Se ve solo en este dispositivo.</div>' : '') +
-      '<div class="small muted">' + [fecha(c.fecha), c.localidad, edadTxt(c.edad), c.genero].filter(Boolean).map(esc).join(' · ') + '</div>' +
-      '<div class="small scores">Ánimo <strong>' + c.phq + '</strong>/' + RULES.phqMax + ' · Ansiedad <strong>' + c.gad + '</strong>/' + RULES.gadMax + ' · ' + esc(c.motivo) + '</div>' +
-      (necesidades(c.ctx).length ? '<div class="row">' + necesidades(c.ctx).map(function(n){ return '<span class="pill neutral">' + esc(n) + '</span>'; }).join('') + '</div>' : '') +
-      '<div class="small">' + (c.contacto ? 'Acepta contacto: <strong>' + esc(c.tel || 'sin teléfono cargado') + '</strong>' : 'No dejó datos de contacto') + '</div>' +
-      (c.nivel !== 'verde' ? '<div class="row between"><span class="small">Estado: <span class="pill ' + (c.estado === 'Pendiente' ? 'rojo' : 'verde') + '">' + esc(c.estado) + '</span></span><button class="chip" data-a="estado" data-v="' + esc(c.id) + '">' + (c.estado === 'Pendiente' ? 'Marcar como contactado' : 'Volver a pendiente') + '</button></div>' : '') +
-      '</div>';
-  }).join('') : '<div class="card muted">No hay casos en esta vista.</div>') + '</div>' +
+  privacidadHTML() +
+  '<div class="cases">' + (list.length ? list.map(tarjetaHTML).join('') : '<div class="card muted">No hay casos en esta vista.</div>') + '</div>' +
   '<div class="card stack"><h3>Reglas de puntaje</h3><p class="small muted">El nivel se calcula con reglas fijas. Los puntos de corte y los textos de las preguntas son provisorios hasta que los valide el equipo clínico. Las preguntas sobre el día a día no modifican el nivel. El asistente con IA solo interpreta lo escrito y explica el resultado: no calcula el nivel.</p>' +
   '<div class="wide"><table><tr><th>Nivel</th><th>Regla</th></tr>' +
   '<tr><td><span class="pill rojo">Rojo</span></td><td>Ánimo o ansiedad de ' + RULES.rojo + ' puntos o más, o cualquier respuesta distinta de "Nunca" en la pregunta 9 de ánimo.</td></tr>' +
@@ -852,8 +895,10 @@ function confirmSalirHTML(){
 
 function render(){
   if (!enCurso()) S.confirmSalir = false;
+  if (S.view !== 'team' && (PRO.on || PRO.pidiendo)) salirPro(); // al salir del tablero se vuelve a ocultar
   document.body.setAttribute('data-view', S.view);
-  document.getElementById('app').innerHTML = V[S.view]() + (S.confirmSalir ? confirmSalirHTML() : '');
+  document.getElementById('app').innerHTML = V[S.view]() + (S.confirmSalir ? confirmSalirHTML() : '') + (PRO.pidiendo ? pedirClaveHTML() : '');
+  if (PRO.pidiendo){ var pc = document.getElementById('proclave'); if (pc) try { pc.focus(); } catch(e){} return; }
   if (S.view !== 'home' && !HIST){ try { history.pushState({ andar: 1 }, ''); HIST = true; } catch(e){} }
   else if (S.view === 'home' && HIST){ HIST = false; try { history.back(); } catch(e){} }
   if (S.confirmSalir){ var b = document.querySelector('.modal [data-a=seguir]'); if (b) try { b.focus(); } catch(e){} return; }
@@ -886,6 +931,9 @@ document.addEventListener('click', function(e){
   var a = el.getAttribute('data-a'), v = el.getAttribute('data-v'), keep = false;
   if (a === 'home'){ if (enCurso()){ S.confirmSalir = true; keep = true; } else S.view = 'home'; }
   else if (a === 'letra'){ LETRA_GRANDE = !LETRA_GRANDE; try { localStorage.setItem('andar.letra', LETRA_GRANDE ? 'grande' : 'normal'); } catch(e){} aplicarLetra(); keep = true; }
+  else if (a === 'verpro'){ PRO.pidiendo = true; PRO.error = false; keep = true; }
+  else if (a === 'cancelarpro'){ PRO.pidiendo = false; PRO.error = false; keep = true; }
+  else if (a === 'ocultar'){ salirPro(); keep = true; }
   else if (a === 'seguir'){ S.confirmSalir = false; keep = true; }
   else if (a === 'salirok'){ S.confirmSalir = false; S.view = 'home'; }
   else if (a === 'intro'){ S.view = 'intro'; S.consent = false; S.i = 0; S.phq = []; S.gad = []; S.ctx = {}; S.result = null; S.chat = []; S.busy = false; S.ai = { busy:false, text:'', q:'', err:'' }; pedirIA(); }
@@ -933,6 +981,12 @@ document.addEventListener('submit', function(e){
   e.preventDefault();
   var id = e.target.id;
   if (id === 'chatform'){ var a = document.getElementById('chatin'); enviarChat(a ? a.value : ''); }
+  else if (id === 'proform'){
+    var k2 = (document.getElementById('proclave') || {}).value || '';
+    if (k2.trim() === DEMO_ACCESO.clave){ PRO.on = true; PRO.ultimo = Date.now(); PRO.pidiendo = false; PRO.error = false; }
+    else PRO.error = true;
+    renderKeep();
+  }
   else if (id === 'loginform'){
     var u = (document.getElementById('usuario') || {}).value || '', k = (document.getElementById('clave') || {}).value || '';
     S.loginUsuario = u;
