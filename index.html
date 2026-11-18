@@ -175,6 +175,7 @@ body.grande #app{zoom:1.2}
 .ctx-tile span{font-size:13px;font-weight:600;line-height:1.25}
 .grid2{display:flex;flex-direction:column;gap:18px}
 @media (min-width:900px){ .ctx-tiles{grid-template-columns:repeat(4,1fr)} .grid2{display:grid;grid-template-columns:1fr 1fr;align-items:start} }
+.lema{font-size:13px;line-height:1.2;color:var(--accent);font-weight:600}
 .version{font-size:12px;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
 .modal{position:fixed;inset:0;background:rgba(6,20,24,.55);display:grid;place-items:center;padding:16px;z-index:10}
 .modal .card{width:100%;max-width:420px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
@@ -257,7 +258,7 @@ var NOMBRE = { verde: 'Verde', amarillo: 'Amarillo', rojo: 'Rojo' };
 var NIVEL_DESC = { rojo: ['Urgente', 'Contactar lo antes posible'], amarillo: ['Atención', 'Ofrecer una consulta pronto'], verde: ['Sin alarma', 'Seguimiento habitual'] };
 // Versión publicada: se muestra al pie del inicio para saber si el celular ya tiene la última.
 // Tiene que ser igual a VERSION en sw.js (lo controla tests/version.test.js). Subir las dos en cada publicación.
-var VERSION_APP = 'andar-v13', VERSION_FECHA = '18/11/2026';
+var VERSION_APP = 'andar-v14', VERSION_FECHA = '18/11/2026';
 var KEY = 'misalud.comoestoy.casos';
 
 var S = { view: 'home', i: 0, phq: [], gad: [], consent: false, alias: '', localidad: '', edad: '', genero: '', contacto: false, tel: '', result: null, filtro: 'pendientes', tab: 'casos', loc: '', metric: 'malestar', ctx: {}, ci: 0, chat: [], busy: false, typed: false, ai: { busy:false, text:'', q:'', err:'' }, casos: [] };
@@ -494,8 +495,9 @@ function escalaHTML(label, puntos){
     '<div class="meter" aria-hidden="true">' + [0,1,2,3].map(function(i){ return '<i class="' + (i <= e ? cls : '') + '"></i>'; }).join('') + '</div></div>';
 }
 
+var LEMA = 'Tu salud mental es importante'; // se muestra debajo de "Andar" en el inicio
 function header(back, title){
-  return '<div class="row between"><div class="brand"><div class="logo">' + ICO.heart + '</div><div><strong>' + esc(title || 'Andar') + '</strong></div></div>' +
+  return '<div class="row between"><div class="brand"><div class="logo">' + ICO.heart + '</div><div><strong>' + esc(title || 'Andar') + '</strong>' + (!back && !title ? '<div class="lema">' + LEMA + '</div>' : '') + '</div></div>' +
     '<div class="row hdr-acc"><button class="aa" data-a="letra" aria-pressed="' + (LETRA_GRANDE ? 'true' : 'false') + '" aria-label="' + (LETRA_GRANDE ? 'Volver a la letra normal' : 'Agrandar la letra') + '" title="Tamaño de letra">A<span>A</span></button>' +
     (back ? '<button class="link" data-a="home">Inicio</button>' : '') + '</div></div>';
 }
