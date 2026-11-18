@@ -23,7 +23,7 @@ También está publicada en https://maximus163.github.io/ANDAR/ y se puede insta
 - **Android:** abrila en Chrome y tocá "Instalar app" o, desde el menú ⋮, "Agregar a la pantalla principal".
 - **iPhone:** abrila en Safari y tocá Compartir → "Agregar a inicio".
 
-Una vez instalada abre aunque no haya conexión. Cuando publiques cambios, subí el número de `VERSION` en `sw.js` para que los celulares bajen la versión nueva.
+Una vez instalada abre aunque no haya conexión. Cuando publiques cambios, subí el número de `VERSION` en `sw.js` y el de `VERSION_APP` en `index.html` (con la fecha), para que los celulares bajen la versión nueva. El número se ve al pie de la pantalla de inicio: así se sabe si un celular ya tiene la última.
 
 Los chequeos no quedan guardados en el celular: así, en un celular compartido nadie ve los resultados de otra persona. Los casos y los números del mapa que vienen cargados son inventados.
 
@@ -50,6 +50,12 @@ Las reglas de puntaje tienen pruebas automáticas:
 
 ```
 node tests/puntaje.test.js
+```
+
+Y una más que controla que la versión de la página y la del service worker sean iguales:
+
+```
+node tests/version.test.js
 ```
 
 ## Documentación

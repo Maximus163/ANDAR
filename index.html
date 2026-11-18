@@ -132,6 +132,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .send{flex-wrap:nowrap} .send input{flex:1;min-width:0} .sendbtn{width:auto;flex:none}
 .aiout{white-space:pre-wrap;overflow-wrap:anywhere}
 .chip[disabled]{opacity:.5;cursor:not-allowed}
+.version{font-size:12px;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
 .modal{position:fixed;inset:0;background:rgba(6,20,24,.55);display:grid;place-items:center;padding:16px;z-index:10}
 .modal .card{width:100%;max-width:420px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
 /* Tablero del equipo en pantallas grandes (PC, televisor). En el celular queda en una columna. */
@@ -204,6 +205,9 @@ var CONTACTOS = [
   { n: '135', t: 'Centro de Asistencia al Suicida', d: 'Gratuita desde CABA y Gran Buenos Aires' }
 ];
 var NOMBRE = { verde: 'Verde', amarillo: 'Amarillo', rojo: 'Rojo' };
+// Versión publicada: se muestra al pie del inicio para saber si el celular ya tiene la última.
+// Tiene que ser igual a VERSION en sw.js (lo controla tests/version.test.js). Subir las dos en cada publicación.
+var VERSION_APP = 'andar-v7', VERSION_FECHA = '18/11/2026';
 var KEY = 'misalud.comoestoy.casos';
 
 var S = { view: 'home', i: 0, phq: [], gad: [], consent: false, alias: '', localidad: '', contacto: false, tel: '', result: null, filtro: 'pendientes', tab: 'casos', loc: '', metric: 'malestar', ctx: {}, ci: 0, chat: [], busy: false, typed: false, ai: { busy:false, text:'', q:'', err:'' }, casos: [] };
@@ -486,7 +490,8 @@ V.home = function(){
     '<div class="tile off">' + ICO.pill + '<div><div class="tname">Mis medicamentos</div><div class="tag">Próximamente</div></div></div>' +
   '</div>' +
   '<p class="small muted">Prototipo de demostración. Todavía no está validado por un equipo clínico.' + (NUBE ? ' <strong>Modo de prueba con servidor:</strong> usá solo datos inventados.' : '') + '</p>' +
-  (EQUIPO_LINK ? '<button class="link small" data-a="team">Acceso para el equipo de salud (usuario: ' + DEMO_ACCESO.usuario + ', clave: ' + DEMO_ACCESO.clave + ')</button>' : '');
+  (EQUIPO_LINK ? '<button class="link small" data-a="team">Acceso para el equipo de salud (usuario: ' + DEMO_ACCESO.usuario + ', clave: ' + DEMO_ACCESO.clave + ')</button>' : '') +
+  '<p class="version">Versión ' + VERSION_APP.replace('andar-v', '') + ' · ' + VERSION_FECHA + '</p>';
 };
 
 V.login = function(){
