@@ -155,11 +155,21 @@ body.grande #app{zoom:1.2}
 .stats-rows{display:flex;flex-direction:column;gap:14px}
 .srow{display:flex;flex-direction:column;gap:6px}
 .srow .row{flex-wrap:nowrap;align-items:baseline}
+.srow .row > span:last-child{white-space:nowrap;flex:none}
 .slabel{font-weight:600}
 .sbar{display:flex;height:14px;border-radius:99px;overflow:hidden;background:var(--line);gap:2px}
 .sbar i{display:block;height:100%}
 .sbar i.verde{background:var(--ok)} .sbar i.amarillo{background:var(--warn)} .sbar i.rojo{background:var(--crit)}
 .sbar.nd{background:transparent;border:2px dashed var(--line);height:14px}
+.obar{height:12px;border-radius:99px;background:var(--line)}
+.obar i{display:block;height:100%;border-radius:99px;background:var(--accent);min-width:4px}
+.obar i.dif{background:var(--warn)}
+.ctx-tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.ctx-tile{background:var(--warn-soft);color:var(--warn);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:4px}
+.ctx-tile b{font-family:var(--display);font-size:28px;line-height:1;font-variant-numeric:tabular-nums}
+.ctx-tile span{font-size:13px;font-weight:600;line-height:1.25}
+.grid2{display:flex;flex-direction:column;gap:18px}
+@media (min-width:900px){ .ctx-tiles{grid-template-columns:repeat(4,1fr)} .grid2{display:grid;grid-template-columns:1fr 1fr;align-items:start} }
 .version{font-size:12px;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
 .modal{position:fixed;inset:0;background:rgba(6,20,24,.55);display:grid;place-items:center;padding:16px;z-index:10}
 .modal .card{width:100%;max-width:420px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
@@ -240,7 +250,7 @@ var CONTACTOS = [
 var NOMBRE = { verde: 'Verde', amarillo: 'Amarillo', rojo: 'Rojo' };
 // Versión publicada: se muestra al pie del inicio para saber si el celular ya tiene la última.
 // Tiene que ser igual a VERSION en sw.js (lo controla tests/version.test.js). Subir las dos en cada publicación.
-var VERSION_APP = 'andar-v9', VERSION_FECHA = '18/11/2026';
+var VERSION_APP = 'andar-v10', VERSION_FECHA = '18/11/2026';
 var KEY = 'misalud.comoestoy.casos';
 
 var S = { view: 'home', i: 0, phq: [], gad: [], consent: false, alias: '', localidad: '', edad: '', genero: '', contacto: false, tel: '', result: null, filtro: 'pendientes', tab: 'casos', loc: '', metric: 'malestar', ctx: {}, ci: 0, chat: [], busy: false, typed: false, ai: { busy:false, text:'', q:'', err:'' }, casos: [] };
@@ -347,6 +357,34 @@ var MIN_N = 10; // con menos chequeos no se pinta la localidad, para no sacar co
 // no describen la realidad. Suman lo mismo que el mapa (816 chequeos). La clave '' es "prefirió no decir".
 var AGG_EDAD_DEMO = { 'Menos de 18':[22,11,5], '18 a 29':[128,55,24], '30 a 44':[160,52,20], '45 a 59':[118,37,14], '60 o más':[84,20,7], '':[42,12,5] };
 var AGG_GENERO_DEMO = { 'Mujer':[318,118,44], 'Varón':[196,52,23], 'Mujer trans / travesti':[6,4,2], 'Varón trans / masculinidad trans':[3,1,1], 'No binario':[4,2,1], 'Otra identidad':[2,1,0], '':[25,9,4] };
+// Preguntas del día a día: cuántas personas eligieron cada respuesta. Ejemplo inventado, coherente con el mapa:
+// respondieron 613 de los 816 chequeos y las respuestas marcadas como dificultad suman lo mismo que AGG_CTX_DEMO.
+var AGG_CTX_OPC_DEMO = { trabajo:[260,128,69,156], vivienda:[460,112,41], alimentacion:[496,84,33], apoyo:[484,98,31] };
+function ctxStats(q, casos){
+  var cuenta = (AGG_CTX_OPC_DEMO[q.k] || q.o.map(function(){ return 0; })).slice();
+  casos.forEach(function(c){ var v = c.ctx && c.ctx[q.k]; if (!c.demo && v != null && cuenta[v] != null) cuenta[v]++; });
+  var n = cuenta.reduce(function(s, x){ return s + x; }, 0), dif = cuenta.reduce(function(s, x, i){ return s + (q.need[i] ? x : 0); }, 0);
+  return { n: n, cuenta: cuenta, dif: dif, pct: n ? Math.round(dif / n * 100) : 0 };
+}
+function ctxStatsHTML(){
+  var datos = CTX.map(function(q){ return { q: q, s: ctxStats(q, S.casos) }; });
+  var tiles = '<div class="ctx-tiles">' + datos.map(function(d){
+    return '<div class="ctx-tile"><b>' + (d.s.n < MIN_N ? '·' : d.s.pct + '%') + '</b><span>' + esc(METRICAS[d.q.k].u.replace(/^con /, '')) + '</span></div>';
+  }).join('') + '</div>';
+  var graficos = datos.map(function(d){
+    var max = Math.max.apply(null, d.s.cuenta.concat([1]));
+    return '<div class="card stack"><div><h3>' + esc(d.q.label) + '</h3><p class="small muted">' + esc(d.q.q) + '</p></div>' +
+      (d.s.n < MIN_N ? '<p class="small muted">Todavía hay pocas respuestas (menos de ' + MIN_N + ').</p>' :
+      '<div class="stats-rows">' + d.q.o.map(function(op, i){
+        var x = d.s.cuenta[i], pct = Math.round(x / d.s.n * 100);
+        return '<div class="srow"><div class="row between"><span class="small">' + esc(op) + '</span><span class="small"><strong>' + pct + '%</strong> <span class="muted">· ' + x + '</span></span></div>' +
+          '<div class="obar"><i class="' + (d.q.need[i] ? 'dif' : '') + '" style="width:' + (x / max * 100).toFixed(1) + '%"></i></div></div>';
+      }).join('') + '</div><p class="small muted">' + d.s.n + ' respuestas.</p>') + '</div>';
+  }).join('');
+  return '<div class="stack"><h2>Tu día a día</h2><p class="muted small">Las cuatro preguntas opcionales sobre condiciones de vida. No cambian el nivel de nadie, pero muestran qué está pesando en los barrios.</p></div>' +
+    '<div class="legend"><i style="background:var(--warn)"></i><span>Respuestas que cuentan como dificultad</span><i style="background:var(--accent)"></i><span>Sin dificultad</span></div>' +
+    tiles + '<div class="grid2">' + graficos + '</div>';
+}
 function grupoStats(campo, opciones, demo, casos){
   return opciones.concat(['']).map(function(op){
     var g = (demo[op] || [0,0,0]).slice();
@@ -371,7 +409,8 @@ function statsHTML(){
     '<div class="legend"><i style="background:var(--ok)"></i><span>Verde</span><i style="background:var(--warn)"></i><span>Amarillo</span><i style="background:var(--crit)"></i><span>Rojo</span><span>· "a atender" es amarillo más rojo</span></div>' +
     '<div class="maplay"><div class="mapcol">' + statsTablaHTML('Por edad', ed, function(l){ return l === 'Prefirió no decir' ? l : edadTxt(l).replace(/^m/, 'M'); }) + '</div>' +
     '<div class="mapcol">' + statsTablaHTML('Por género', ge) + '</div></div>' +
-    '<p class="small muted">Con menos de ' + MIN_N + ' chequeos un grupo no se muestra en detalle: son pocos para sacar conclusiones y podría reconocerse a alguien.</p>';
+    '<p class="small muted">Con menos de ' + MIN_N + ' chequeos un grupo no se muestra en detalle: son pocos para sacar conclusiones y podría reconocerse a alguien.</p>' +
+    ctxStatsHTML();
 }
 
 /*MAP-START*/
