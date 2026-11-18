@@ -175,6 +175,13 @@ body.grande #app{zoom:1.2}
 .ctx-tile span{font-size:13px;font-weight:600;line-height:1.25}
 .grid2{display:flex;flex-direction:column;gap:18px}
 @media (min-width:900px){ .ctx-tiles{grid-template-columns:repeat(4,1fr)} .grid2{display:grid;grid-template-columns:1fr 1fr;align-items:start} }
+.fundamentos p{font-size:14px}
+.fund-grid{display:flex;flex-direction:column;gap:14px}
+.fund{border-left:3px solid var(--accent-soft);padding-left:12px}
+.fund h4{margin:0 0 4px;font-size:14px;font-weight:700;color:var(--accent)}
+.fund p{color:var(--ink);line-height:1.5}
+ul.fuentes{margin:8px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:6px;color:var(--muted)}
+@media (min-width:900px){ .fund-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 28px} }
 .lema{font-size:13px;line-height:1.2;color:var(--accent);font-weight:600}
 .version{font-size:12px;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
 .modal{position:fixed;inset:0;background:rgba(6,20,24,.55);display:grid;place-items:center;padding:16px;z-index:10}
@@ -258,7 +265,7 @@ var NOMBRE = { verde: 'Verde', amarillo: 'Amarillo', rojo: 'Rojo' };
 var NIVEL_DESC = { rojo: ['Urgente', 'Contactar lo antes posible'], amarillo: ['Atención', 'Ofrecer una consulta pronto'], verde: ['Sin alarma', 'Seguimiento habitual'] };
 // Versión publicada: se muestra al pie del inicio para saber si el celular ya tiene la última.
 // Tiene que ser igual a VERSION en sw.js (lo controla tests/version.test.js). Subir las dos en cada publicación.
-var VERSION_APP = 'andar-v14', VERSION_FECHA = '18/11/2026';
+var VERSION_APP = 'andar-v15', VERSION_FECHA = '18/11/2026';
 var KEY = 'misalud.comoestoy.casos';
 
 var S = { view: 'home', i: 0, phq: [], gad: [], consent: false, alias: '', localidad: '', edad: '', genero: '', contacto: false, tel: '', result: null, filtro: 'pendientes', tab: 'casos', loc: '', metric: 'malestar', ctx: {}, ci: 0, chat: [], busy: false, typed: false, ai: { busy:false, text:'', q:'', err:'' }, casos: [] };
@@ -493,6 +500,32 @@ function escalaHTML(label, puntos){
   var e = escalon(puntos), cls = ['verde', 'verde', 'amarillo', 'rojo'][e];
   return '<div class="escala"><div class="row between"><span>' + label + '</span><strong>' + ESCALA[e] + '</strong></div>' +
     '<div class="meter" aria-hidden="true">' + [0,1,2,3].map(function(i){ return '<i class="' + (i <= e ? cls : '') + '"></i>'; }).join('') + '</div></div>';
+}
+
+// De dónde salen las preguntas: fundamentos y fuentes para el equipo de salud.
+// Texto provisorio: revisar con el referente clínico antes de cualquier uso real.
+function fundamentosHTML(){
+  var bloque = function(t, x){ return '<div class="fund"><h4>' + t + '</h4><p>' + x + '</p></div>'; };
+  return '<div class="card stack fundamentos"><div><h3>De dónde salen las preguntas</h3>' +
+    '<p class="small muted">Fundamentos del chequeo. Texto provisorio, a revisar con el referente clínico.</p></div>' +
+    '<p>El chequeo usa dos cuestionarios breves, de uso libre y muy usados en el primer nivel de atención para detectar a tiempo a quien necesita una consulta. No sirven para diagnosticar: ayudan a decidir a quién llamar primero.</p>' +
+    '<div class="fund-grid">' +
+    bloque('Estado de ánimo · PHQ-9 (9 preguntas)', 'El Cuestionario de Salud del Paciente mide síntomas de depresión en las últimas dos semanas. Cada respuesta vale de 0 a 3 puntos, con un total de 0 a 27. Lo desarrollaron Kroenke, Spitzer y Williams (2001) y tiene una validación hecha en Argentina (Urtasun y colaboradores, 2019). La pregunta 9 explora pensamientos de muerte o de hacerse daño: por eso cualquier respuesta distinta de "Nunca" lleva directo a la pantalla de crisis.') +
+    bloque('Preocupación y nervios · GAD-7 (7 preguntas)', 'Mide síntomas de ansiedad en las últimas dos semanas, con un total de 0 a 21. Lo publicaron Spitzer, Kroenke, Williams y Löwe (2006) y tiene una versión validada en español (García-Campayo y colaboradores, 2010).') +
+    bloque('Puntos de corte', 'Los autores de los dos cuestionarios proponen 5, 10 y 15 puntos como cortes de malestar leve, moderado y alto. Andar usa ' + RULES.amarillo + ' para amarillo y ' + RULES.rojo + ' para rojo, el criterio más usado para sugerir una consulta. Son provisorios hasta la validación clínica.') +
+    bloque('Tu día a día', 'Las preguntas sobre trabajo, vivienda, alimentación y red de apoyo son propias de Andar y parten de los determinantes sociales de la salud: cómo vivimos también pesa en cómo nos sentimos. La de alimentación sigue la idea de la Escala Latinoamericana y Caribeña de Seguridad Alimentaria (ELCSA) de la FAO. No cambian el nivel: sirven para entender el contexto y orientar la ayuda.') +
+    bloque('Datos de la persona', 'Todos son opcionales. Las opciones de género son las del Censo 2022 del INDEC y la edad se pide por franjas, para no identificar a nadie. La localidad se usa solo para el mapa.') +
+    bloque('Marco', 'La herramienta se piensa dentro de la Ley Nacional de Salud Mental 26.657, que entiende la salud mental como un derecho y prioriza la atención en la comunidad.') +
+    '</div>' +
+    '<details class="small"><summary>Ver fuentes</summary><ul class="fuentes">' +
+      '<li>Kroenke K, Spitzer RL, Williams JB. The PHQ-9: validity of a brief depression severity measure. <em>J Gen Intern Med</em>. 2001;16(9):606-613.</li>' +
+      '<li>Urtasun M, Daray FM, Teti GL y col. Validation and calibration of the patient health questionnaire (PHQ-9) in Argentina. <em>BMC Psychiatry</em>. 2019;19:291.</li>' +
+      '<li>Spitzer RL, Kroenke K, Williams JB, Löwe B. A brief measure for assessing generalized anxiety disorder: the GAD-7. <em>Arch Intern Med</em>. 2006;166(10):1092-1097.</li>' +
+      '<li>García-Campayo J, Zamorano E, Ruiz MA y col. Cultural adaptation into Spanish of the generalized anxiety disorder-7 (GAD-7) scale as a screening tool. <em>Health Qual Life Outcomes</em>. 2010;8:8.</li>' +
+      '<li>FAO. Escala Latinoamericana y Caribeña de Seguridad Alimentaria (ELCSA): manual de uso y aplicaciones. 2012.</li>' +
+      '<li>INDEC. Censo Nacional de Población, Hogares y Viviendas 2022.</li>' +
+      '<li>Ley Nacional de Salud Mental N.º 26.657 (2010).</li>' +
+    '</ul></details></div>';
 }
 
 var LEMA = 'Tu salud mental es importante'; // se muestra debajo de "Andar" en el inicio
@@ -796,6 +829,7 @@ V.team = function(){
   '<tr><td><span class="pill rojo">Rojo</span></td><td>Ánimo o ansiedad de ' + RULES.rojo + ' puntos o más, o cualquier respuesta distinta de "Nunca" en la pregunta 9 de ánimo.</td></tr>' +
   '<tr><td><span class="pill amarillo">Amarillo</span></td><td>Ánimo o ansiedad entre ' + RULES.amarillo + ' y ' + (RULES.rojo - 1) + ' puntos.</td></tr>' +
   '<tr><td><span class="pill verde">Verde</span></td><td>Ambos por debajo de ' + RULES.amarillo + ' puntos. Entre ' + RULES.leve + ' y ' + (RULES.amarillo - 1) + ' se sugiere repetir el chequeo en dos semanas.</td></tr></table></div></div>' +
+  fundamentosHTML() +
   '<button class="link small" data-a="salir">Cerrar sesión del equipo</button>';
 };
 
