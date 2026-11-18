@@ -10,6 +10,8 @@ Es un proyecto personal, pero lo estoy pensando para presentarlo en la Secretar�
 
 El foco está puesto en el triaje de salud mental en el primer nivel de atención, que es donde menos recursos hay y donde llegar a tiempo cambia más las cosas. La persona responde el PHQ-9 y el GAD-7, y el sistema la ubica en nivel verde, amarillo o rojo. Los puntos de corte que usamos por ahora son 10 para amarillo y 15 para rojo, y cualquier respuesta distinta de "Nunca" en la pregunta 9 lleva directo a la pantalla de crisis.
 
+El piloto se hace con la encuesta tradicional, respondida con botones: no tiene costo por uso, no envía datos a terceros y funciona en cualquier celular. El asistente con IA queda para una segunda etapa, cuando la Secretaría defina el costo y el alojamiento de los datos.
+
 La inteligencia artificial tiene un rol acotado. Conversa con la persona, entiende respuestas dichas con sus palabras y explica el resultado, pero no calcula el nivel ni maneja las situaciones de riesgo. Eso queda en reglas fijas y en un protocolo que tiene que definir el equipo clínico.
 
 Al final del chequeo hay cuatro preguntas opcionales sobre trabajo, vivienda, alimentación y red de apoyo, que no modifican el nivel. Con eso y con la localidad que declara cada persona se arma un mapa del partido para la gestión. No se usa la ubicación del celular ni datos personales para el mapa.
