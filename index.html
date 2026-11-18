@@ -152,6 +152,14 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 /* Letra grande: agranda toda la columna de la app (en el celular sigue ocupando el mismo ancho) */
 body.grande #app{zoom:1.2}
 @media (min-width:1800px){ body.grande[data-view="team"] #app{zoom:1.4} }
+.stats-rows{display:flex;flex-direction:column;gap:14px}
+.srow{display:flex;flex-direction:column;gap:6px}
+.srow .row{flex-wrap:nowrap;align-items:baseline}
+.slabel{font-weight:600}
+.sbar{display:flex;height:14px;border-radius:99px;overflow:hidden;background:var(--line);gap:2px}
+.sbar i{display:block;height:100%}
+.sbar i.verde{background:var(--ok)} .sbar i.amarillo{background:var(--warn)} .sbar i.rojo{background:var(--crit)}
+.sbar.nd{background:transparent;border:2px dashed var(--line);height:14px}
 .version{font-size:12px;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
 .modal{position:fixed;inset:0;background:rgba(6,20,24,.55);display:grid;place-items:center;padding:16px;z-index:10}
 .modal .card{width:100%;max-width:420px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
@@ -216,6 +224,11 @@ var GAD = [
   'Sentir miedo, como si algo terrible fuera a pasar'
 ];
 var OPTS = ['Nunca', 'Varios días', 'Más de la mitad de los días', 'Casi todos los días'];
+// Edad por franjas y no exacta: alcanza para las estadísticas y identifica menos a la persona.
+var EDADES = ['Menos de 18', '18 a 29', '30 a 44', '45 a 59', '60 o más'];
+// Opciones de identidad de género del Censo 2022 (INDEC). Se puede no responder.
+var GENEROS = ['Mujer', 'Varón', 'Mujer trans / travesti', 'Varón trans / masculinidad trans', 'No binario', 'Otra identidad'];
+function edadTxt(e){ return e ? (e === 'Menos de 18' ? 'menos de 18 años' : e + ' años') : ''; }
 var LOCALIDADES = ['San Justo','Ramos Mejía','Villa Luzuriaga','Isidro Casanova','Rafael Castillo','Gregorio de Laferrere','González Catán','Virrey del Pino','Ciudad Evita','La Tablada','Lomas del Mirador','Tapiales','Aldo Bonzi','Villa Madero','Villa Celina','20 de Junio','Otra'];
 // Contactos de ayuda: a confirmar por el equipo clínico antes de cualquier uso real.
 var CONTACTOS = [
@@ -227,10 +240,10 @@ var CONTACTOS = [
 var NOMBRE = { verde: 'Verde', amarillo: 'Amarillo', rojo: 'Rojo' };
 // Versión publicada: se muestra al pie del inicio para saber si el celular ya tiene la última.
 // Tiene que ser igual a VERSION en sw.js (lo controla tests/version.test.js). Subir las dos en cada publicación.
-var VERSION_APP = 'andar-v8', VERSION_FECHA = '18/11/2026';
+var VERSION_APP = 'andar-v9', VERSION_FECHA = '18/11/2026';
 var KEY = 'misalud.comoestoy.casos';
 
-var S = { view: 'home', i: 0, phq: [], gad: [], consent: false, alias: '', localidad: '', contacto: false, tel: '', result: null, filtro: 'pendientes', tab: 'casos', loc: '', metric: 'malestar', ctx: {}, ci: 0, chat: [], busy: false, typed: false, ai: { busy:false, text:'', q:'', err:'' }, casos: [] };
+var S = { view: 'home', i: 0, phq: [], gad: [], consent: false, alias: '', localidad: '', edad: '', genero: '', contacto: false, tel: '', result: null, filtro: 'pendientes', tab: 'casos', loc: '', metric: 'malestar', ctx: {}, ci: 0, chat: [], busy: false, typed: false, ai: { busy:false, text:'', q:'', err:'' }, casos: [] };
 
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); }
 // Privacidad: los chequeos ya no se guardan en el celular. En un celular compartido nadie puede ver
@@ -259,7 +272,11 @@ function nuevoId(){
   return 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, function(){ return (Math.random() * 16 | 0).toString(16); });
 }
 function subirCaso(c){
-  return api('chequeos', { method: 'POST', prefer: 'return=minimal', body: { id: c.id, alias: c.alias || null, localidad: c.localidad || null, contacto: !!c.contacto, tel: c.tel || null, phq: c.phq, gad: c.gad, nivel: c.nivel, motivo: c.motivo, ctx: c.ctx || null, estado: c.estado } })
+  var fila = { id: c.id, alias: c.alias || null, localidad: c.localidad || null, edad: c.edad || null, genero: c.genero || null, contacto: !!c.contacto, tel: c.tel || null, phq: c.phq, gad: c.gad, nivel: c.nivel, motivo: c.motivo, ctx: c.ctx || null, estado: c.estado };
+  var subir = function(f){ return api('chequeos', { method: 'POST', prefer: 'return=minimal', body: f }); };
+  return subir(fila)
+    // Si la base todavía no tiene las columnas de edad y género, se reintenta sin ellas para no perder el chequeo.
+    .catch(function(){ var f = {}; Object.keys(fila).forEach(function(k){ if (k !== 'edad' && k !== 'genero') f[k] = fila[k]; }); return subir(f); })
     .then(function(){ c.subido = true; }, function(){ c.subido = false; if (S.view === 'team') renderKeep(); });
 }
 function traerCasos(){
@@ -267,7 +284,7 @@ function traerCasos(){
   NUBE_EST.cargando = true;
   api('chequeos?select=*&order=created_at.desc&limit=300').then(function(filas){
     var pendientes = S.casos.filter(function(c){ return c.subido === false; }); // los que no se pudieron subir siguen a la vista
-    S.casos = filas.map(function(f){ return { id: f.id, demo: false, prueba: true, fecha: f.created_at, alias: f.alias || '', localidad: f.localidad || '', contacto: f.contacto, tel: f.tel || '', phq: f.phq, gad: f.gad, nivel: f.nivel, motivo: f.motivo || '', ctx: f.ctx || null, estado: f.estado }; }).concat(pendientes);
+    S.casos = filas.map(function(f){ return { id: f.id, demo: false, prueba: true, fecha: f.created_at, alias: f.alias || '', localidad: f.localidad || '', edad: f.edad || '', genero: f.genero || '', contacto: f.contacto, tel: f.tel || '', phq: f.phq, gad: f.gad, nivel: f.nivel, motivo: f.motivo || '', ctx: f.ctx || null, estado: f.estado }; }).concat(pendientes);
     NUBE_EST.ok = true; NUBE_EST.hora = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   }, function(){ NUBE_EST.ok = false; }).then(function(){
     NUBE_EST.cargando = false; if (S.view === 'team') renderKeep();
@@ -278,12 +295,12 @@ if (NUBE) setInterval(function(){ if (S.view === 'team' && !document.hidden) tra
 function fecha(iso){ try { return new Date(iso).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }); } catch(e){ return iso; } }
 
 var DEMO = [
-  { id:'d1', demo:true, fecha:hace(2),  alias:'Ejemplo 1', localidad:'González Catán', contacto:true,  tel:'11 5555-0101', phq:17, gad:12, nivel:'rojo', motivo:'Respuesta positiva en la pregunta de riesgo', estado:'Pendiente', ctx:{ trabajo:2, vivienda:1, alimentacion:1, apoyo:2 } },
-  { id:'d2', demo:true, fecha:hace(5),  alias:'Ejemplo 2', localidad:'San Justo', contacto:true,  tel:'11 5555-0102', phq:12, gad:9,  nivel:'amarillo', motivo:'Puntaje moderado', estado:'Pendiente', ctx:{ trabajo:1, vivienda:0, alimentacion:0, apoyo:1 } },
-  { id:'d3', demo:true, fecha:hace(20), alias:'Ejemplo 3', localidad:'Isidro Casanova', contacto:false, tel:'', phq:8,  gad:16, nivel:'rojo', motivo:'Puntaje alto', estado:'Pendiente' },
-  { id:'d4', demo:true, fecha:hace(26), alias:'Ejemplo 4', localidad:'Villa Luzuriaga', contacto:true,  tel:'11 5555-0104', phq:11, gad:13, nivel:'amarillo', motivo:'Puntaje moderado', estado:'Contactado', ctx:{ trabajo:0, vivienda:2, alimentacion:0, apoyo:0 } },
-  { id:'d5', demo:true, fecha:hace(30), alias:'Ejemplo 5', localidad:'Ramos Mejía', contacto:false, tel:'', phq:3,  gad:2,  nivel:'verde', motivo:'Sin señales de alarma', estado:'Sin acción' },
-  { id:'d6', demo:true, fecha:hace(49), alias:'Ejemplo 6', localidad:'Gregorio de Laferrere', contacto:false, tel:'', phq:6,  gad:4,  nivel:'verde', motivo:'Molestias leves', estado:'Sin acción' }
+  { id:'d1', demo:true, fecha:hace(2),  alias:'Ejemplo 1', localidad:'González Catán',  edad:'18 a 29', genero:'Mujer', contacto:true,  tel:'11 5555-0101', phq:17, gad:12, nivel:'rojo', motivo:'Respuesta positiva en la pregunta de riesgo', estado:'Pendiente', ctx:{ trabajo:2, vivienda:1, alimentacion:1, apoyo:2 } },
+  { id:'d2', demo:true, fecha:hace(5),  alias:'Ejemplo 2', localidad:'San Justo', edad:'45 a 59', genero:'Varón', contacto:true,  tel:'11 5555-0102', phq:12, gad:9,  nivel:'amarillo', motivo:'Puntaje moderado', estado:'Pendiente', ctx:{ trabajo:1, vivienda:0, alimentacion:0, apoyo:1 } },
+  { id:'d3', demo:true, fecha:hace(20), alias:'Ejemplo 3', localidad:'Isidro Casanova', edad:'30 a 44', genero:'', contacto:false, tel:'', phq:8,  gad:16, nivel:'rojo', motivo:'Puntaje alto', estado:'Pendiente' },
+  { id:'d4', demo:true, fecha:hace(26), alias:'Ejemplo 4', localidad:'Villa Luzuriaga', edad:'60 o más', genero:'Mujer', contacto:true,  tel:'11 5555-0104', phq:11, gad:13, nivel:'amarillo', motivo:'Puntaje moderado', estado:'Contactado', ctx:{ trabajo:0, vivienda:2, alimentacion:0, apoyo:0 } },
+  { id:'d5', demo:true, fecha:hace(30), alias:'Ejemplo 5', localidad:'Ramos Mejía', edad:'', genero:'No binario', contacto:false, tel:'', phq:3,  gad:2,  nivel:'verde', motivo:'Sin señales de alarma', estado:'Sin acción' },
+  { id:'d6', demo:true, fecha:hace(49), alias:'Ejemplo 6', localidad:'Gregorio de Laferrere', edad:'Menos de 18', genero:'Varón', contacto:false, tel:'', phq:6,  gad:4,  nivel:'verde', motivo:'Molestias leves', estado:'Sin acción' }
 ];
 
 // Mapa esquemático del partido de La Matanza: posición aproximada de cada localidad (columna, fila).
@@ -325,6 +342,37 @@ var METRICAS = {
 function necesidad(k, v){ for (var i = 0; i < CTX.length; i++) if (CTX[i].k === k) return v != null && !!CTX[i].need[v]; return false; }
 function necesidades(ctx){ return CTX.filter(function(q){ return ctx && necesidad(q.k, ctx[q.k]); }).map(function(q){ return q.label; }); }
 var MIN_N = 10; // con menos chequeos no se pinta la localidad, para no sacar conclusiones con pocos datos
+
+// Estadísticas por edad y género. Cantidades de ejemplo [verde, amarillo, rojo], inventadas para mostrar cómo se verían:
+// no describen la realidad. Suman lo mismo que el mapa (816 chequeos). La clave '' es "prefirió no decir".
+var AGG_EDAD_DEMO = { 'Menos de 18':[22,11,5], '18 a 29':[128,55,24], '30 a 44':[160,52,20], '45 a 59':[118,37,14], '60 o más':[84,20,7], '':[42,12,5] };
+var AGG_GENERO_DEMO = { 'Mujer':[318,118,44], 'Varón':[196,52,23], 'Mujer trans / travesti':[6,4,2], 'Varón trans / masculinidad trans':[3,1,1], 'No binario':[4,2,1], 'Otra identidad':[2,1,0], '':[25,9,4] };
+function grupoStats(campo, opciones, demo, casos){
+  return opciones.concat(['']).map(function(op){
+    var g = (demo[op] || [0,0,0]).slice();
+    casos.forEach(function(c){ if (c.demo || (c[campo] || '') !== op) return; g[c.nivel === 'verde' ? 0 : c.nivel === 'amarillo' ? 1 : 2]++; });
+    var n = g[0] + g[1] + g[2];
+    return { label: op || 'Prefirió no decir', n: n, v: g[0], a: g[1], r: g[2], pct: n ? Math.round((g[1] + g[2]) / n * 100) : 0 };
+  }).filter(function(f){ return f.n > 0; });
+}
+function statsTablaHTML(titulo, filas, nombre){
+  return '<div class="card stack"><h3>' + titulo + '</h3>' +
+    '<div class="stats-rows">' + filas.map(function(f){
+      var poco = f.n < MIN_N, w = function(x){ return f.n ? (x / f.n * 100).toFixed(1) + '%' : '0'; };
+      return '<div class="srow"><div class="row between"><span class="slabel">' + esc(nombre ? nombre(f.label) : f.label) + '</span>' +
+        '<span class="small"><strong>' + (poco ? 'pocos datos' : f.pct + '% a atender') + '</strong> <span class="muted">· ' + f.n + '</span></span></div>' +
+        (poco ? '<div class="sbar nd"></div>' : '<div class="sbar" role="img" aria-label="Verde ' + f.v + ', amarillo ' + f.a + ', rojo ' + f.r + '"><i class="verde" style="width:' + w(f.v) + '"></i><i class="amarillo" style="width:' + w(f.a) + '"></i><i class="rojo" style="width:' + w(f.r) + '"></i></div>') +
+        '</div>';
+    }).join('') + '</div></div>';
+}
+function statsHTML(){
+  var ed = grupoStats('edad', EDADES, AGG_EDAD_DEMO, S.casos), ge = grupoStats('genero', GENEROS, AGG_GENERO_DEMO, S.casos);
+  return '<div class="notice"><strong>Datos de ejemplo.</strong> Las cantidades son inventadas para mostrar cómo se verían las estadísticas. ' + (NUBE ? 'Los chequeos del servidor de prueba se suman a su grupo.' : 'Los chequeos hechos en esta pantalla se suman a su grupo hasta que se cierra.') + '</div>' +
+    '<div class="legend"><i style="background:var(--ok)"></i><span>Verde</span><i style="background:var(--warn)"></i><span>Amarillo</span><i style="background:var(--crit)"></i><span>Rojo</span><span>· "a atender" es amarillo más rojo</span></div>' +
+    '<div class="maplay"><div class="mapcol">' + statsTablaHTML('Por edad', ed, function(l){ return l === 'Prefirió no decir' ? l : edadTxt(l).replace(/^m/, 'M'); }) + '</div>' +
+    '<div class="mapcol">' + statsTablaHTML('Por género', ge) + '</div></div>' +
+    '<p class="small muted">Con menos de ' + MIN_N + ' chequeos un grupo no se muestra en detalle: son pocos para sacar conclusiones y podría reconocerse a alguien.</p>';
+}
 
 /*MAP-START*/
 function metricaLocalidad(metric, casos){
@@ -554,6 +602,11 @@ V.intro = function(){
     '<div class="field"><label for="alias">¿Cómo querés que te llamemos? (opcional)</label><input id="alias" type="text" maxlength="30" autocomplete="off" placeholder="Un nombre o apodo" value="' + esc(S.alias) + '"></div>' +
     '<div class="field"><label for="localidad">Tu localidad (opcional)</label><select id="localidad"><option value="">Prefiero no decir</option>' +
       LOCALIDADES.map(function(l){ return '<option' + (S.localidad === l ? ' selected' : '') + '>' + esc(l) + '</option>'; }).join('') + '</select></div>' +
+    '<div class="field"><label for="edad">Tu edad (opcional)</label><select id="edad"><option value="">Prefiero no decir</option>' +
+      EDADES.map(function(l){ return '<option value="' + esc(l) + '"' + (S.edad === l ? ' selected' : '') + '>' + esc(edadTxt(l).replace(/^m/, 'M')) + '</option>'; }).join('') + '</select></div>' +
+    '<div class="field"><label for="genero">Género (opcional)</label><select id="genero"><option value="">Prefiero no decir</option>' +
+      GENEROS.map(function(l){ return '<option' + (S.genero === l ? ' selected' : '') + '>' + esc(l) + '</option>'; }).join('') + '</select></div>' +
+    '<p class="small muted">La edad y el género se usan para estadísticas generales del partido. Podés no responderlos.</p>' +
     '<label class="check" for="contacto"><input id="contacto" type="checkbox"' + (S.contacto ? ' checked' : '') + '><span>Acepto que el equipo de salud me contacte si el resultado lo sugiere.</span></label>' +
     (S.contacto ? '<div class="field"><label for="tel">Teléfono de contacto</label><input id="tel" type="tel" maxlength="20" autocomplete="off" placeholder="11 1234-5678" value="' + esc(S.tel) + '"></div>' : '') +
   '</div>' +
@@ -662,7 +715,8 @@ V.team = function(){
   var orden = { rojo:0, amarillo:1, verde:2 };
   if (f === 'pendientes') list.sort(function(a, b){ return orden[a.nivel] - orden[b.nivel] || (a.fecha < b.fecha ? 1 : -1); });
   var chips = [['pendientes','Pendientes'],['rojo','Rojo'],['amarillo','Amarillo'],['verde','Verde'],['todos','Todos']];
-  var tabs = '<div class="chips"><button class="chip' + (S.tab === 'casos' ? ' on' : '') + '" data-a="tab" data-v="casos">Casos</button><button class="chip' + (S.tab === 'mapa' ? ' on' : '') + '" data-a="tab" data-v="mapa">Mapa por localidad</button></div>';
+  var tabs = '<div class="chips"><button class="chip' + (S.tab === 'casos' ? ' on' : '') + '" data-a="tab" data-v="casos">Casos</button><button class="chip' + (S.tab === 'mapa' ? ' on' : '') + '" data-a="tab" data-v="mapa">Mapa por localidad</button><button class="chip' + (S.tab === 'stats' ? ' on' : '') + '" data-a="tab" data-v="stats">Estadísticas</button></div>';
+  if (S.tab === 'stats') return header(true, 'Equipo de salud') + '<div class="stack"><h2>Estadísticas</h2><p class="muted small">Cómo se reparte el malestar según la edad y el género que declara cada persona.</p></div>' + tabs + statsHTML();
   if (S.tab === 'mapa') return header(true, 'Equipo de salud') + '<div class="stack"><h2>Mapa de La Matanza</h2><p class="muted small">Dónde se concentra el malestar, localidad por localidad.</p></div>' + tabs + mapaHTML();
   return header(true, 'Equipo de salud') +
   '<div class="stack"><h2>Tablero de seguimiento</h2>' + (NUBE
@@ -675,7 +729,7 @@ V.team = function(){
   '<div class="cases">' + (list.length ? list.map(function(c){
     return '<div class="card case ' + c.nivel + ' stack"><div class="row between"><strong>' + esc(c.alias || 'Sin nombre') + '</strong><span class="row"><span class="pill ' + c.nivel + '">' + NOMBRE[c.nivel] + '</span>' + (c.demo ? '<span class="pill neutral">Ejemplo</span>' : c.prueba ? '<span class="pill neutral">Prueba</span>' : '') + '</span></div>' +
       (c.subido === false ? '<div class="small"><strong>No se pudo enviar al servidor.</strong> Se ve solo en este dispositivo.</div>' : '') +
-      '<div class="small muted">' + esc(fecha(c.fecha)) + (c.localidad ? ' · ' + esc(c.localidad) : '') + '</div>' +
+      '<div class="small muted">' + [fecha(c.fecha), c.localidad, edadTxt(c.edad), c.genero].filter(Boolean).map(esc).join(' · ') + '</div>' +
       '<div class="small scores">Ánimo <strong>' + c.phq + '</strong>/' + RULES.phqMax + ' · Ansiedad <strong>' + c.gad + '</strong>/' + RULES.gadMax + ' · ' + esc(c.motivo) + '</div>' +
       (necesidades(c.ctx).length ? '<div class="row">' + necesidades(c.ctx).map(function(n){ return '<span class="pill neutral">' + esc(n) + '</span>'; }).join('') + '</div>' : '') +
       '<div class="small">' + (c.contacto ? 'Acepta contacto: <strong>' + esc(c.tel || 'sin teléfono cargado') + '</strong>' : 'No dejó datos de contacto') + '</div>' +
@@ -725,13 +779,15 @@ function readForm(){
   var g = function(id){ return document.getElementById(id); };
   if (g('alias')) S.alias = g('alias').value.trim();
   if (g('localidad')) S.localidad = g('localidad').value;
+  if (g('edad')) S.edad = g('edad').value;
+  if (g('genero')) S.genero = g('genero').value;
   if (g('tel')) S.tel = g('tel').value.trim();
 }
 
 function finalizar(){ S.result = classify(S.phq, S.gad); registrar(S.result); S.view = 'result'; }
 
 function registrar(r){
-  var c = { id: NUBE ? nuevoId() : 'c' + Date.now(), demo: false, prueba: NUBE, fecha: new Date().toISOString(), alias: S.alias, localidad: S.localidad, contacto: S.contacto, tel: S.contacto ? S.tel : '', phq: r.phq, gad: r.gad, nivel: r.nivel, motivo: r.motivo, ctx: S.ctx, estado: r.nivel === 'verde' ? 'Sin acción' : 'Pendiente' };
+  var c = { id: NUBE ? nuevoId() : 'c' + Date.now(), demo: false, prueba: NUBE, fecha: new Date().toISOString(), alias: S.alias, localidad: S.localidad, edad: S.edad, genero: S.genero, contacto: S.contacto, tel: S.contacto ? S.tel : '', phq: r.phq, gad: r.gad, nivel: r.nivel, motivo: r.motivo, ctx: S.ctx, estado: r.nivel === 'verde' ? 'Sin acción' : 'Pendiente' };
   S.casos.push(c);
   if (NUBE) subirCaso(c);
 }

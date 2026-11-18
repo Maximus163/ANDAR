@@ -22,6 +22,10 @@ Es solo para demostraciones con datos inventados. Cualquiera que tenga el enlace
    Nunca usar la clave **secret** ni la **service_role**: esas saltean todas las reglas y no pueden quedar en la página.
 4. Cargar esos dos datos en `index.html`, en la línea `var SERVIDOR = { url: '', key: '' };`, y publicar.
 
+## Si la tabla se creó antes de la versión 9
+
+La versión 9 suma edad y género. Si la tabla ya existía, hay que correr una vez [`servidor/agregar-edad-genero.sql`](../servidor/agregar-edad-genero.sql) en el SQL Editor. Mientras no se corra, la app sigue guardando los chequeos, pero sin esos dos datos.
+
 ## Después de una demo
 
 Para vaciar la lista, en el SQL Editor:

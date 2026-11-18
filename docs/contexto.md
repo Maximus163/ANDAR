@@ -14,6 +14,8 @@ El piloto se hace con la encuesta tradicional, respondida con botones: no tiene 
 
 La inteligencia artificial tiene un rol acotado. Conversa con la persona, entiende respuestas dichas con sus palabras y explica el resultado, pero no calcula el nivel ni maneja las situaciones de riesgo. Eso queda en reglas fijas y en un protocolo que tiene que definir el equipo clínico.
 
+Al empezar, además del nombre o apodo y la localidad, la persona puede indicar su franja de edad y su género, con la opción de no decirlo. La edad se pide por franjas y no exacta, y el género usa las opciones del Censo 2022. Con eso el tablero muestra estadísticas por edad y género, y no muestra en detalle los grupos con menos de 10 chequeos.
+
 Al final del chequeo hay cuatro preguntas opcionales sobre trabajo, vivienda, alimentación y red de apoyo, que no modifican el nivel. Con eso y con la localidad que declara cada persona se arma un mapa del partido para la gestión. No se usa la ubicación del celular ni datos personales para el mapa.
 
 El proyecto tiene una mirada justicialista en lo que hace: la salud como derecho, prioridad a quien menos tiene y atención a las condiciones de vida, en la línea del sanitarismo de Ramón Carrillo. Pero la herramienta es para todos los vecinos, sin ningún compromiso político y sin símbolos ni consignas partidarias.

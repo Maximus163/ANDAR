@@ -20,6 +20,12 @@ create table if not exists public.chequeos (
   estado      text not null default 'Pendiente' check (estado in ('Pendiente', 'Contactado', 'Sin acción'))
 );
 
+-- Edad (por franjas) y género (opciones del Censo 2022). Opcionales: vacío es "prefiero no decir".
+alter table public.chequeos add column if not exists edad text
+  check (edad in ('Menos de 18', '18 a 29', '30 a 44', '45 a 59', '60 o más'));
+alter table public.chequeos add column if not exists genero text
+  check (genero in ('Mujer', 'Varón', 'Mujer trans / travesti', 'Varón trans / masculinidad trans', 'No binario', 'Otra identidad'));
+
 alter table public.chequeos enable row level security;
 
 -- Permisos explícitos por si el proyecto no expone las tablas nuevas automáticamente.
