@@ -250,7 +250,7 @@ var CONTACTOS = [
 var NOMBRE = { verde: 'Verde', amarillo: 'Amarillo', rojo: 'Rojo' };
 // Versión publicada: se muestra al pie del inicio para saber si el celular ya tiene la última.
 // Tiene que ser igual a VERSION en sw.js (lo controla tests/version.test.js). Subir las dos en cada publicación.
-var VERSION_APP = 'andar-v10', VERSION_FECHA = '18/11/2026';
+var VERSION_APP = 'andar-v11', VERSION_FECHA = '18/11/2026';
 var KEY = 'misalud.comoestoy.casos';
 
 var S = { view: 'home', i: 0, phq: [], gad: [], consent: false, alias: '', localidad: '', edad: '', genero: '', contacto: false, tel: '', result: null, filtro: 'pendientes', tab: 'casos', loc: '', metric: 'malestar', ctx: {}, ci: 0, chat: [], busy: false, typed: false, ai: { busy:false, text:'', q:'', err:'' }, casos: [] };
@@ -406,11 +406,12 @@ function statsTablaHTML(titulo, filas, nombre){
 function statsHTML(){
   var ed = grupoStats('edad', EDADES, AGG_EDAD_DEMO, S.casos), ge = grupoStats('genero', GENEROS, AGG_GENERO_DEMO, S.casos);
   return '<div class="notice"><strong>Datos de ejemplo.</strong> Las cantidades son inventadas para mostrar cómo se verían las estadísticas. ' + (NUBE ? 'Los chequeos del servidor de prueba se suman a su grupo.' : 'Los chequeos hechos en esta pantalla se suman a su grupo hasta que se cierra.') + '</div>' +
+    ctxStatsHTML() +
+    '<div class="stack"><h2>Edad y género</h2><p class="muted small">Cómo se reparte el malestar según la edad y el género que declara cada persona.</p></div>' +
     '<div class="legend"><i style="background:var(--ok)"></i><span>Verde</span><i style="background:var(--warn)"></i><span>Amarillo</span><i style="background:var(--crit)"></i><span>Rojo</span><span>· "a atender" es amarillo más rojo</span></div>' +
     '<div class="maplay"><div class="mapcol">' + statsTablaHTML('Por edad', ed, function(l){ return l === 'Prefirió no decir' ? l : edadTxt(l).replace(/^m/, 'M'); }) + '</div>' +
     '<div class="mapcol">' + statsTablaHTML('Por género', ge) + '</div></div>' +
-    '<p class="small muted">Con menos de ' + MIN_N + ' chequeos un grupo no se muestra en detalle: son pocos para sacar conclusiones y podría reconocerse a alguien.</p>' +
-    ctxStatsHTML();
+    '<p class="small muted">Con menos de ' + MIN_N + ' chequeos un grupo no se muestra en detalle: son pocos para sacar conclusiones y podría reconocerse a alguien.</p>';
 }
 
 /*MAP-START*/
@@ -755,7 +756,7 @@ V.team = function(){
   if (f === 'pendientes') list.sort(function(a, b){ return orden[a.nivel] - orden[b.nivel] || (a.fecha < b.fecha ? 1 : -1); });
   var chips = [['pendientes','Pendientes'],['rojo','Rojo'],['amarillo','Amarillo'],['verde','Verde'],['todos','Todos']];
   var tabs = '<div class="chips"><button class="chip' + (S.tab === 'casos' ? ' on' : '') + '" data-a="tab" data-v="casos">Casos</button><button class="chip' + (S.tab === 'mapa' ? ' on' : '') + '" data-a="tab" data-v="mapa">Mapa por localidad</button><button class="chip' + (S.tab === 'stats' ? ' on' : '') + '" data-a="tab" data-v="stats">Estadísticas</button></div>';
-  if (S.tab === 'stats') return header(true, 'Equipo de salud') + '<div class="stack"><h2>Estadísticas</h2><p class="muted small">Cómo se reparte el malestar según la edad y el género que declara cada persona.</p></div>' + tabs + statsHTML();
+  if (S.tab === 'stats') return header(true, 'Equipo de salud') + '<div class="stack"><h2>Estadísticas</h2><p class="muted small">Condiciones de vida, edad y género de quienes hicieron el chequeo.</p></div>' + tabs + statsHTML();
   if (S.tab === 'mapa') return header(true, 'Equipo de salud') + '<div class="stack"><h2>Mapa de La Matanza</h2><p class="muted small">Dónde se concentra el malestar, localidad por localidad.</p></div>' + tabs + mapaHTML();
   return header(true, 'Equipo de salud') +
   '<div class="stack"><h2>Tablero de seguimiento</h2>' + (NUBE
