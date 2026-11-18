@@ -279,7 +279,7 @@ var NOMBRE = { verde: 'Verde', amarillo: 'Amarillo', rojo: 'Rojo' };
 var NIVEL_DESC = { rojo: ['Urgente', 'Contactar lo antes posible'], amarillo: ['Atención', 'Ofrecer una consulta pronto'], verde: ['Sin alarma', 'Seguimiento habitual'] };
 // Versión publicada: se muestra al pie del inicio para saber si el celular ya tiene la última.
 // Tiene que ser igual a VERSION en sw.js (lo controla tests/version.test.js). Subir las dos en cada publicación.
-var VERSION_APP = 'andar-v18', VERSION_FECHA = '18/11/2026';
+var VERSION_APP = 'andar-v19', VERSION_FECHA = '18/11/2026';
 var KEY = 'misalud.comoestoy.casos';
 
 var S = { view: 'home', i: 0, phq: [], gad: [], consent: false, alias: '', localidad: '', edad: '', genero: '', contacto: false, tel: '', result: null, filtro: 'pendientes', tab: 'casos', loc: '', metric: 'malestar', ctx: {}, ci: 0, chat: [], busy: false, typed: false, ai: { busy:false, text:'', q:'', err:'' }, casos: [] };
@@ -499,7 +499,8 @@ function mapaHTML(){
 }
 
 var ICO = {
-  heart:'<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>',
+  // Logo de Andar: una mano que ofrece un brote (cuidado, acompañamiento y algo que crece). Mismo dibujo que icons/icon.svg.
+  logo:'<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 14.2l5.8 5.8"/><path d="M5 13.4l2.4-2c.4-.3.9-.5 1.4-.5h4.4a1.7 1.7 0 0 1 0 3.4H10.8"/><path d="M7.6 18.8l1.3-1.1c.4-.3.9-.5 1.4-.5h4.3c1 0 2-.4 2.7-1.1l3.4-3.4a1.7 1.7 0 0 0-2.4-2.4l-3.5 3.3"/><path d="M13 10V6.4"/><path d="M13 7.2c0-2.3 1.5-3.6 3.8-3.6 0 2.3-1.5 3.6-3.8 3.6z"/><path d="M13 8.4c0-1.9-1.2-3-3.1-3 0 1.9 1.2 3 3.1 3z"/></svg>',
   face:'<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5c1 1.2 2.2 1.8 3.5 1.8s2.5-.6 3.5-1.8M9 10h.01M15 10h.01"/></svg>',
   cal:'<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>',
   doc:'<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 13h5M10 17h5"/></svg>',
@@ -593,7 +594,7 @@ function fundamentosHTML(){
 
 var LEMA = 'Tu salud mental es importante'; // se muestra debajo de "Andar" en el inicio
 function header(back, title){
-  return '<div class="row between"><div class="brand"><div class="logo">' + ICO.heart + '</div><div><strong>' + esc(title || 'Andar') + '</strong>' + (!back && !title ? '<div class="lema">' + LEMA + '</div>' : '') + '</div></div>' +
+  return '<div class="row between"><div class="brand"><div class="logo">' + ICO.logo + '</div><div><strong>' + esc(title || 'Andar') + '</strong>' + (!back && !title ? '<div class="lema">' + LEMA + '</div>' : '') + '</div></div>' +
     '<div class="row hdr-acc"><button class="aa" data-a="letra" aria-pressed="' + (LETRA_GRANDE ? 'true' : 'false') + '" aria-label="' + (LETRA_GRANDE ? 'Volver a la letra normal' : 'Agrandar la letra') + '" title="Tamaño de letra">A<span>A</span></button>' +
     (back ? '<button class="link" data-a="home">Inicio</button>' : '') + '</div></div>';
 }
