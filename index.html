@@ -104,6 +104,8 @@ ul.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .stat{border-radius:14px;padding:12px;text-align:center}
 .stat b{display:block;font-family:var(--display);font-size:28px;font-variant-numeric:tabular-nums;line-height:1}
+.stat small{display:block;margin-top:6px;font-size:12px;line-height:1.3;font-weight:500}
+.stat small strong{display:block;font-size:13px;text-transform:uppercase;letter-spacing:.04em}
 .stat.verde{background:var(--ok-soft);color:var(--ok)} .stat.amarillo{background:var(--warn-soft);color:var(--warn)} .stat.rojo{background:var(--crit-soft);color:var(--crit)}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 .chip{border:1.5px solid var(--line);background:var(--surface);border-radius:99px;padding:6px 12px;font-size:14px;font-weight:600}
@@ -133,7 +135,8 @@ th{font-weight:700;border-top:0}
 .loc.nd{background:transparent;border:2px dashed var(--line);color:var(--muted)}
 .loc.on{border-color:var(--ink)}
 .legend{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);flex-wrap:wrap}
-.legend i{display:inline-block;width:22px;height:12px;border-radius:3px}
+.legend i{display:inline-block;width:22px;height:12px;border-radius:3px;flex:none}
+.legend .li{display:inline-flex;align-items:center;gap:6px;margin-right:10px}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .nom-corto{display:none}
 @media (max-width:480px){ .nom-largo{display:none} .nom-corto{display:inline;white-space:nowrap} th,td{padding:8px 4px} }
@@ -160,6 +163,8 @@ body.grande #app{zoom:1.2}
 .sbar{display:flex;height:14px;border-radius:99px;overflow:hidden;background:var(--line);gap:2px}
 .sbar i{display:block;height:100%}
 .sbar i.verde{background:var(--ok)} .sbar i.amarillo{background:var(--warn)} .sbar i.rojo{background:var(--crit)}
+.snums{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+.t-rojo{color:var(--crit)} .t-amarillo{color:var(--warn)} .t-verde{color:var(--ok)}
 .sbar.nd{background:transparent;border:2px dashed var(--line);height:14px}
 .obar{height:12px;border-radius:99px;background:var(--line)}
 .obar i{display:block;height:100%;border-radius:99px;background:var(--accent);min-width:4px}
@@ -248,9 +253,11 @@ var CONTACTOS = [
   { n: '135', t: 'Centro de Asistencia al Suicida', d: 'Gratuita desde CABA y Gran Buenos Aires' }
 ];
 var NOMBRE = { verde: 'Verde', amarillo: 'Amarillo', rojo: 'Rojo' };
+// Qué hacer con cada nivel, para el equipo. Provisorio: el protocolo lo tiene que definir el equipo clínico.
+var NIVEL_DESC = { rojo: ['Urgente', 'Contactar lo antes posible'], amarillo: ['Atención', 'Ofrecer una consulta pronto'], verde: ['Sin alarma', 'Seguimiento habitual'] };
 // Versión publicada: se muestra al pie del inicio para saber si el celular ya tiene la última.
 // Tiene que ser igual a VERSION en sw.js (lo controla tests/version.test.js). Subir las dos en cada publicación.
-var VERSION_APP = 'andar-v11', VERSION_FECHA = '18/11/2026';
+var VERSION_APP = 'andar-v12', VERSION_FECHA = '18/11/2026';
 var KEY = 'misalud.comoestoy.casos';
 
 var S = { view: 'home', i: 0, phq: [], gad: [], consent: false, alias: '', localidad: '', edad: '', genero: '', contacto: false, tel: '', result: null, filtro: 'pendientes', tab: 'casos', loc: '', metric: 'malestar', ctx: {}, ci: 0, chat: [], busy: false, typed: false, ai: { busy:false, text:'', q:'', err:'' }, casos: [] };
@@ -343,7 +350,7 @@ var AGG_CTX_DEMO = {
   'Lomas del Mirador':[25,4,3,2,5], 'Tapiales':[12,3,2,1,2], 'Aldo Bonzi':[8,2,1,1,1], 'Villa Madero':[22,6,5,3,4], 'Villa Celina':[30,11,10,7,6], '20 de Junio':[6,2,2,2,1]
 };
 var METRICAS = {
-  malestar:{ chip:'Malestar', t:'Chequeos que requieren atención', d:'Porcentaje de chequeos en nivel amarillo o rojo sobre el total de cada localidad.', u:'requiere atención' },
+  malestar:{ chip:'Malestar', t:'Chequeos que requieren atención', d:'Porcentaje de chequeos urgentes (rojo) o que piden atención (amarillo) sobre el total de cada localidad.', u:'requiere atención' },
   trabajo:{ chip:'Trabajo', t:'Dificultades de trabajo', d:'Porcentaje de personas con trabajo inestable o que no consiguen trabajo, sobre quienes respondieron.', u:'con dificultades de trabajo' },
   vivienda:{ chip:'Vivienda', t:'Preocupación por la vivienda', d:'Porcentaje de personas para quienes la vivienda es una preocupación, sobre quienes respondieron.', u:'con preocupación por la vivienda' },
   alimentacion:{ chip:'Alimentación', t:'Falta de comida en el hogar', d:'Porcentaje de personas a las que les faltó comida en el último mes, sobre quienes respondieron.', u:'con falta de comida' },
@@ -396,10 +403,12 @@ function grupoStats(campo, opciones, demo, casos){
 function statsTablaHTML(titulo, filas, nombre){
   return '<div class="card stack"><h3>' + titulo + '</h3>' +
     '<div class="stats-rows">' + filas.map(function(f){
-      var poco = f.n < MIN_N, w = function(x){ return f.n ? (x / f.n * 100).toFixed(1) + '%' : '0'; };
+      var poco = f.n < MIN_N, w = function(x){ return f.n ? (x / f.n * 100).toFixed(1) + '%' : '0'; }, p = function(x){ return f.n ? Math.round(x / f.n * 100) : 0; };
       return '<div class="srow"><div class="row between"><span class="slabel">' + esc(nombre ? nombre(f.label) : f.label) + '</span>' +
-        '<span class="small"><strong>' + (poco ? 'pocos datos' : f.pct + '% a atender') + '</strong> <span class="muted">· ' + f.n + '</span></span></div>' +
-        (poco ? '<div class="sbar nd"></div>' : '<div class="sbar" role="img" aria-label="Verde ' + f.v + ', amarillo ' + f.a + ', rojo ' + f.r + '"><i class="verde" style="width:' + w(f.v) + '"></i><i class="amarillo" style="width:' + w(f.a) + '"></i><i class="rojo" style="width:' + w(f.r) + '"></i></div>') +
+        '<span class="small muted">' + (poco ? '<strong>pocos datos</strong> · ' : '') + f.n + ' chequeos</span></div>' +
+        (poco ? '<div class="sbar nd"></div>' :
+          '<div class="sbar" role="img" aria-label="' + NIVEL_DESC.rojo[0] + ' ' + f.r + ', ' + NIVEL_DESC.amarillo[0].toLowerCase() + ' ' + f.a + ', ' + NIVEL_DESC.verde[0].toLowerCase() + ' ' + f.v + '"><i class="rojo" style="width:' + w(f.r) + '"></i><i class="amarillo" style="width:' + w(f.a) + '"></i><i class="verde" style="width:' + w(f.v) + '"></i></div>' +
+          '<div class="snums"><span class="t-rojo">' + NIVEL_DESC.rojo[0] + ' ' + p(f.r) + '%</span><span class="t-amarillo">' + NIVEL_DESC.amarillo[0] + ' ' + p(f.a) + '%</span><span class="t-verde">' + NIVEL_DESC.verde[0] + ' ' + p(f.v) + '%</span></div>') +
         '</div>';
     }).join('') + '</div></div>';
 }
@@ -408,7 +417,9 @@ function statsHTML(){
   return '<div class="notice"><strong>Datos de ejemplo.</strong> Las cantidades son inventadas para mostrar cómo se verían las estadísticas. ' + (NUBE ? 'Los chequeos del servidor de prueba se suman a su grupo.' : 'Los chequeos hechos en esta pantalla se suman a su grupo hasta que se cierra.') + '</div>' +
     ctxStatsHTML() +
     '<div class="stack"><h2>Edad y género</h2><p class="muted small">Cómo se reparte el malestar según la edad y el género que declara cada persona.</p></div>' +
-    '<div class="legend"><i style="background:var(--ok)"></i><span>Verde</span><i style="background:var(--warn)"></i><span>Amarillo</span><i style="background:var(--crit)"></i><span>Rojo</span><span>· "a atender" es amarillo más rojo</span></div>' +
+    '<div class="legend">' + [['rojo','crit'],['amarillo','warn'],['verde','ok']].map(function(k){
+      return '<span class="li"><i style="background:var(--' + k[1] + ')"></i><span><strong>' + NIVEL_DESC[k[0]][0] + '</strong> (' + k[0] + '): ' + NIVEL_DESC[k[0]][1].toLowerCase() + '</span></span>';
+    }).join('') + '</div>' +
     '<div class="maplay"><div class="mapcol">' + statsTablaHTML('Por edad', ed, function(l){ return l === 'Prefirió no decir' ? l : edadTxt(l).replace(/^m/, 'M'); }) + '</div>' +
     '<div class="mapcol">' + statsTablaHTML('Por género', ge) + '</div></div>' +
     '<p class="small muted">Con menos de ' + MIN_N + ' chequeos un grupo no se muestra en detalle: son pocos para sacar conclusiones y podría reconocerse a alguien.</p>';
@@ -447,7 +458,7 @@ function mapaHTML(){
   var det = sel ? (function(){ var o = d[sel];
     return '<div class="card stack"><div class="row between"><h3>' + esc(sel) + '</h3><span class="small muted">' + o.n + (esM ? ' chequeos' : ' respuestas') + '</span></div>' +
       (o.step < 0 ? '<p class="small muted">Todavía hay pocos datos para sacar conclusiones (menos de ' + MIN_N + ').</p>' : '<p><strong>' + o.pct + '%</strong> ' + M.u + ' (' + o.x + ' de ' + o.n + ').</p>') +
-      (esM ? '<div class="row"><span class="pill verde">Verde ' + o.v + '</span><span class="pill amarillo">Amarillo ' + o.a + '</span><span class="pill rojo">Rojo ' + o.r + '</span></div>' : '') + '</div>'; })()
+      (esM ? '<div class="row"><span class="pill rojo">' + NIVEL_DESC.rojo[0] + ' ' + o.r + '</span><span class="pill amarillo">' + NIVEL_DESC.amarillo[0] + ' ' + o.a + '</span><span class="pill verde">' + NIVEL_DESC.verde[0] + ' ' + o.v + '</span></div>' : '') + '</div>'; })()
     : '<div class="card small muted">Tocá una localidad para ver el detalle.</div>';
   var filas = Object.keys(d).sort(function(a, b){ return (d[b].step < 0 ? -1 : d[b].pct) - (d[a].step < 0 ? -1 : d[a].pct) || d[b].n - d[a].n; }).map(function(k){
     var o = d[k];
@@ -764,7 +775,9 @@ V.team = function(){
       (NUBE_EST.ok === false ? '<strong>No se pudo conectar.</strong>' : NUBE_EST.ok ? 'Actualizado a las ' + esc(NUBE_EST.hora) + '.' : 'Conectando…') + '</span>' +
       '<button class="chip" data-a="actualizar"' + (NUBE_EST.cargando ? ' disabled' : '') + '>Actualizar</button></div>'
     : '<p class="muted small">Los casos marcados como ejemplo son datos de prueba. Los chequeos hechos en esta pantalla se suman a la lista y se borran al cerrarla: no quedan guardados en el aparato.</p>') + '</div>' + tabs +
-  '<div class="stats"><div class="stat rojo"><b>' + n.rojo + '</b>Rojo</div><div class="stat amarillo"><b>' + n.amarillo + '</b>Amarillo</div><div class="stat verde"><b>' + n.verde + '</b>Verde</div></div>' +
+  '<div class="stats">' + ['rojo', 'amarillo', 'verde'].map(function(k){
+    return '<div class="stat ' + k + '"><b>' + n[k] + '</b>' + NOMBRE[k] + '<small><strong>' + NIVEL_DESC[k][0] + '</strong>' + NIVEL_DESC[k][1] + '</small></div>';
+  }).join('') + '</div>' +
   '<div class="chips">' + chips.map(function(c){ return '<button class="chip' + (f === c[0] ? ' on' : '') + '" data-a="filtro" data-v="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>' +
   '<div class="cases">' + (list.length ? list.map(function(c){
     return '<div class="card case ' + c.nivel + ' stack"><div class="row between"><strong>' + esc(c.alias || 'Sin nombre') + '</strong><span class="row"><span class="pill ' + c.nivel + '">' + NOMBRE[c.nivel] + '</span>' + (c.demo ? '<span class="pill neutral">Ejemplo</span>' : c.prueba ? '<span class="pill neutral">Prueba</span>' : '') + '</span></div>' +
