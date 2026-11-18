@@ -54,6 +54,7 @@ node tests/puntaje.test.js
 
 - [Contexto del proyecto](docs/contexto.md): decisiones tomadas, estado y pendientes.
 - [Plan del triaje](docs/plan-triaje.md): la idea, los criterios de diseño y cómo empezar.
+- [Servidor de prueba](docs/servidor-prueba.md): cómo ver en un mismo tablero los chequeos de varios celulares durante una demostración (`?prueba`, solo datos inventados).
 
 ## Autor
 

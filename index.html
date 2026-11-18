@@ -204,6 +204,42 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(
 function load(){ try { var r = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(r) ? r : []; } catch(e){ return []; } }
 function save(){ try { localStorage.setItem(KEY, JSON.stringify(S.casos.filter(function(c){ return !c.demo; }))); } catch(e){} }
 function hace(h){ return new Date(Date.now() - h * 3600000).toISOString(); }
+// ---------- Servidor de prueba (Supabase) ----------
+// Solo se usa si la app se abre con ?prueba en la dirección. Sin eso, los chequeos quedan en el celular como siempre.
+// Es para demostraciones con datos inventados: cualquiera con el enlace puede ver la lista (ver servidor/supabase.sql).
+// La clave es la "publishable" o "anon" de Supabase, que es pública por diseño.
+var SERVIDOR = { url: 'https://tikctyrrouxghtqhpchw.supabase.co', key: 'sb_publishable_ERQ5ECBHDJF2HDwmS1f7gw_BnoYHa9E' };
+var NUBE = !!(SERVIDOR.url && SERVIDOR.key) && /[?&]prueba(=|&|$)/.test(location.search);
+var CADA = 15000; // cada cuánto se actualiza el tablero, en milisegundos
+var NUBE_EST = { ok: null, hora: '', cargando: false };
+function api(ruta, op){
+  op = op || {};
+  var h = { apikey: SERVIDOR.key, 'Content-Type': 'application/json' };
+  if (op.prefer) h.Prefer = op.prefer;
+  return fetch(SERVIDOR.url.replace(/\/+$/, '') + '/rest/v1/' + ruta, { method: op.method || 'GET', headers: h, body: op.body ? JSON.stringify(op.body) : undefined })
+    .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.status === 204 || r.status === 201 ? null : r.json(); });
+}
+function nuevoId(){
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, function(){ return (Math.random() * 16 | 0).toString(16); });
+}
+function subirCaso(c){
+  return api('chequeos', { method: 'POST', prefer: 'return=minimal', body: { id: c.id, alias: c.alias || null, localidad: c.localidad || null, contacto: !!c.contacto, tel: c.tel || null, phq: c.phq, gad: c.gad, nivel: c.nivel, motivo: c.motivo, ctx: c.ctx || null, estado: c.estado } })
+    .then(function(){ c.subido = true; }, function(){ c.subido = false; if (S.view === 'team') renderKeep(); });
+}
+function traerCasos(){
+  if (!NUBE || NUBE_EST.cargando) return;
+  NUBE_EST.cargando = true;
+  api('chequeos?select=*&order=created_at.desc&limit=300').then(function(filas){
+    var pendientes = S.casos.filter(function(c){ return c.subido === false; }); // los que no se pudieron subir siguen a la vista
+    S.casos = filas.map(function(f){ return { id: f.id, demo: false, prueba: true, fecha: f.created_at, alias: f.alias || '', localidad: f.localidad || '', contacto: f.contacto, tel: f.tel || '', phq: f.phq, gad: f.gad, nivel: f.nivel, motivo: f.motivo || '', ctx: f.ctx || null, estado: f.estado }; }).concat(pendientes);
+    NUBE_EST.ok = true; NUBE_EST.hora = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }, function(){ NUBE_EST.ok = false; }).then(function(){
+    NUBE_EST.cargando = false; if (S.view === 'team') renderKeep();
+  });
+}
+if (NUBE) setInterval(function(){ if (S.view === 'team' && !document.hidden) traerCasos(); }, CADA);
+
 function fecha(iso){ try { return new Date(iso).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }); } catch(e){ return iso; } }
 
 var DEMO = [
@@ -425,7 +461,7 @@ V.home = function(){
     '<div class="tile off">' + ICO.doc + '<div><div class="tname">Mis estudios</div><div class="tag">Próximamente</div></div></div>' +
     '<div class="tile off">' + ICO.pill + '<div><div class="tname">Mis medicamentos</div><div class="tag">Próximamente</div></div></div>' +
   '</div>' +
-  '<p class="small muted">Prototipo de demostración. Todavía no está validado por un equipo clínico.</p>' +
+  '<p class="small muted">Prototipo de demostración. Todavía no está validado por un equipo clínico.' + (NUBE ? ' <strong>Modo de prueba con servidor:</strong> usá solo datos inventados.' : '') + '</p>' +
   '<button class="link small" data-a="team">Acceso para el equipo de salud</button>';
 };
 
@@ -434,6 +470,7 @@ V.intro = function(){
   '<div class="stack"><h2>Antes de empezar</h2>' +
   '<p>Te vamos a hacer 16 preguntas cortas sobre cómo te sentiste en las últimas dos semanas. No hay respuestas correctas ni incorrectas, y no hace falta tener obra social.</p></div>' +
   '<div class="notice"><strong>Esto no es un diagnóstico</strong> y no reemplaza la consulta con un profesional. Sirve para orientarte sobre qué paso conviene dar.</div>' +
+  (NUBE ? '<div class="level amarillo"><strong>Modo de prueba.</strong> Lo que respondas se envía a un servidor de demostración que puede ver cualquiera que tenga el enlace. Usá un nombre y un teléfono inventados.</div>' : '') +
   '<div class="card stack">' +
     '<div class="field"><label for="alias">¿Cómo querés que te llamemos? (opcional)</label><input id="alias" type="text" maxlength="30" autocomplete="off" placeholder="Un nombre o apodo" value="' + esc(S.alias) + '"></div>' +
     '<div class="field"><label for="localidad">Tu localidad (opcional)</label><select id="localidad"><option value="">Prefiero no decir</option>' +
@@ -546,11 +583,16 @@ V.team = function(){
   var tabs = '<div class="chips"><button class="chip' + (S.tab === 'casos' ? ' on' : '') + '" data-a="tab" data-v="casos">Casos</button><button class="chip' + (S.tab === 'mapa' ? ' on' : '') + '" data-a="tab" data-v="mapa">Mapa por localidad</button></div>';
   if (S.tab === 'mapa') return header(true, 'Equipo de salud') + '<div class="stack"><h2>Mapa de La Matanza</h2><p class="muted small">Dónde se concentra el malestar, localidad por localidad.</p></div>' + tabs + mapaHTML();
   return header(true, 'Equipo de salud') +
-  '<div class="stack"><h2>Tablero de seguimiento</h2><p class="muted small">Los casos marcados como ejemplo son datos de prueba. Los chequeos hechos en este dispositivo se suman a la lista.</p></div>' + tabs +
+  '<div class="stack"><h2>Tablero de seguimiento</h2>' + (NUBE
+    ? '<div class="notice row between"><span><strong>Servidor de prueba.</strong> Muestra los chequeos de todos los celulares que usan el enlace de prueba, con datos inventados. ' +
+      (NUBE_EST.ok === false ? '<strong>No se pudo conectar.</strong>' : NUBE_EST.ok ? 'Actualizado a las ' + esc(NUBE_EST.hora) + '.' : 'Conectando…') + '</span>' +
+      '<button class="chip" data-a="actualizar"' + (NUBE_EST.cargando ? ' disabled' : '') + '>Actualizar</button></div>'
+    : '<p class="muted small">Los casos marcados como ejemplo son datos de prueba. Los chequeos hechos en este dispositivo se suman a la lista.</p>') + '</div>' + tabs +
   '<div class="stats"><div class="stat rojo"><b>' + n.rojo + '</b>Rojo</div><div class="stat amarillo"><b>' + n.amarillo + '</b>Amarillo</div><div class="stat verde"><b>' + n.verde + '</b>Verde</div></div>' +
   '<div class="chips">' + chips.map(function(c){ return '<button class="chip' + (f === c[0] ? ' on' : '') + '" data-a="filtro" data-v="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>' +
   '<div class="cases">' + (list.length ? list.map(function(c){
-    return '<div class="card case ' + c.nivel + ' stack"><div class="row between"><strong>' + esc(c.alias || 'Sin nombre') + '</strong><span class="row"><span class="pill ' + c.nivel + '">' + NOMBRE[c.nivel] + '</span>' + (c.demo ? '<span class="pill neutral">Ejemplo</span>' : '') + '</span></div>' +
+    return '<div class="card case ' + c.nivel + ' stack"><div class="row between"><strong>' + esc(c.alias || 'Sin nombre') + '</strong><span class="row"><span class="pill ' + c.nivel + '">' + NOMBRE[c.nivel] + '</span>' + (c.demo ? '<span class="pill neutral">Ejemplo</span>' : c.prueba ? '<span class="pill neutral">Prueba</span>' : '') + '</span></div>' +
+      (c.subido === false ? '<div class="small"><strong>No se pudo enviar al servidor.</strong> Se ve solo en este dispositivo.</div>' : '') +
       '<div class="small muted">' + esc(fecha(c.fecha)) + (c.localidad ? ' · ' + esc(c.localidad) : '') + '</div>' +
       '<div class="small scores">Ánimo <strong>' + c.phq + '</strong>/' + RULES.phqMax + ' · Ansiedad <strong>' + c.gad + '</strong>/' + RULES.gadMax + ' · ' + esc(c.motivo) + '</div>' +
       (necesidades(c.ctx).length ? '<div class="row">' + necesidades(c.ctx).map(function(n){ return '<span class="pill neutral">' + esc(n) + '</span>'; }).join('') + '</div>' : '') +
@@ -563,7 +605,7 @@ V.team = function(){
   '<tr><td><span class="pill rojo">Rojo</span></td><td>Ánimo o ansiedad de ' + RULES.rojo + ' puntos o más, o cualquier respuesta distinta de "Nunca" en la pregunta 9 de ánimo.</td></tr>' +
   '<tr><td><span class="pill amarillo">Amarillo</span></td><td>Ánimo o ansiedad entre ' + RULES.amarillo + ' y ' + (RULES.rojo - 1) + ' puntos.</td></tr>' +
   '<tr><td><span class="pill verde">Verde</span></td><td>Ambos por debajo de ' + RULES.amarillo + ' puntos. Entre ' + RULES.leve + ' y ' + (RULES.amarillo - 1) + ' se sugiere repetir el chequeo en dos semanas.</td></tr></table></div></div>' +
-  '<button class="link small" data-a="borrar">Borrar los chequeos guardados en este dispositivo</button>';
+  (NUBE ? '' : '<button class="link small" data-a="borrar">Borrar los chequeos guardados en este dispositivo</button>');
 };
 
 function render(){
@@ -586,8 +628,9 @@ function readForm(){
 function finalizar(){ S.result = classify(S.phq, S.gad); registrar(S.result); S.view = 'result'; }
 
 function registrar(r){
-  S.casos.push({ id: 'c' + Date.now(), demo: false, fecha: new Date().toISOString(), alias: S.alias, localidad: S.localidad, contacto: S.contacto, tel: S.contacto ? S.tel : '', phq: r.phq, gad: r.gad, nivel: r.nivel, motivo: r.motivo, ctx: S.ctx, estado: r.nivel === 'verde' ? 'Sin acción' : 'Pendiente' });
-  save();
+  var c = { id: NUBE ? nuevoId() : 'c' + Date.now(), demo: false, prueba: NUBE, fecha: new Date().toISOString(), alias: S.alias, localidad: S.localidad, contacto: S.contacto, tel: S.contacto ? S.tel : '', phq: r.phq, gad: r.gad, nivel: r.nivel, motivo: r.motivo, ctx: S.ctx, estado: r.nivel === 'verde' ? 'Sin acción' : 'Pendiente' };
+  S.casos.push(c);
+  if (NUBE) subirCaso(c); else save();
 }
 
 document.addEventListener('click', function(e){
@@ -612,12 +655,20 @@ document.addEventListener('click', function(e){
   else if (a === 'ctx'){ S.ctx[CTX[S.ci].k] = Number(v) < 0 ? null : Number(v); S.ci++; if (S.ci >= CTX.length) finalizar(); }
   else if (a === 'ctxfin'){ finalizar(); }
   else if (a === 'metric'){ S.metric = v; keep = true; }
-  else if (a === 'team'){ S.view = 'team'; }
+  else if (a === 'team'){ S.view = 'team'; traerCasos(); }
   else if (a === 'filtro'){ S.filtro = v; }
   else if (a === 'tab'){ S.tab = v; }
   else if (a === 'loc'){ S.loc = S.loc === v ? '' : v; keep = true; }
-  else if (a === 'estado'){ S.casos.forEach(function(c){ if (c.id === v) c.estado = c.estado === 'Pendiente' ? 'Contactado' : 'Pendiente'; }); save(); }
-  else if (a === 'borrar'){ S.casos = S.casos.filter(function(c){ return c.demo; }); save(); }
+  else if (a === 'estado'){
+    S.casos.forEach(function(c){
+      if (c.id !== v) return;
+      c.estado = c.estado === 'Pendiente' ? 'Contactado' : 'Pendiente';
+      if (NUBE && c.prueba && c.subido !== false) api('chequeos?id=eq.' + encodeURIComponent(c.id), { method: 'PATCH', prefer: 'return=minimal', body: { estado: c.estado } }).then(traerCasos, traerCasos);
+    });
+    keep = true; if (!NUBE) save();
+  }
+  else if (a === 'actualizar'){ traerCasos(); keep = true; }
+  else if (a === 'borrar' && !NUBE){ S.casos = S.casos.filter(function(c){ return c.demo; }); save(); }
   var y = window.scrollY; render(); if (keep) window.scrollTo(0, y);
 });
 
@@ -634,7 +685,7 @@ document.addEventListener('submit', function(e){
   else if (id === 'dudaform'){ var d = document.getElementById('duda'); if (d && d.value.trim()) iaResultado(d.value); }
 });
 
-S.casos = DEMO.concat(load());
+S.casos = NUBE ? [] : DEMO.concat(load());
 pedirIA();
 render();
 
